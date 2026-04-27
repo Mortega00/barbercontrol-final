@@ -20,36 +20,22 @@ function App() {
   }
 
   return (
-    <div style={{
-      background: "#0A0A0A",
-      color: "white",
-      minHeight: "100vh",
-      display: "flex",
-      flexDirection: "column"
-    }}>
+    <div style={{ background: "#0A0A0A", color: "white", minHeight: "100vh", display: "flex", flexDirection: "column" }}>
 
       {/* HEADER */}
-      <div style={{
-        padding: 15,
-        borderBottom: "1px solid #222",
-        display: "flex",
-        justifyContent: "space-between"
-      }}>
+      <div style={{ padding: 15, borderBottom: "1px solid #222", display: "flex", justifyContent: "space-between" }}>
         <h2 style={{ color: "#D4AF37" }}>BARBERCONTROL</h2>
 
-        <div
-          onClick={descargarRespaldo}
-          style={{
-            background: "#222",
-            borderRadius: "50%",
-            width: 35,
-            height: 35,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer"
-          }}
-        >
+        <div onClick={descargarRespaldo} style={{
+          background: "#222",
+          borderRadius: "50%",
+          width: 35,
+          height: 35,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          cursor: "pointer"
+        }}>
           M
         </div>
       </div>
@@ -62,49 +48,31 @@ function App() {
       </div>
 
       {/* NAVBAR */}
-      <div style={{
-        display: "flex",
-        justifyContent: "space-around",
-        padding: 10,
-        borderTop: "1px solid #222"
-      }}>
-
-        <button onClick={() => setTab("agenda")} style={{ color: tab === "agenda" ? "#D4AF37" : "white" }}>
-          Agenda
-        </button>
-
-        <button onClick={() => setTab("barberos")} style={{ color: tab === "barberos" ? "#D4AF37" : "white" }}>
-          Barberos
-        </button>
-
-        <button onClick={() => setTab("caja")} style={{ color: tab === "caja" ? "#D4AF37" : "white" }}>
-          Caja
-        </button>
-
+      <div style={{ display: "flex", justifyContent: "space-around", padding: 10, borderTop: "1px solid #222" }}>
+        <button onClick={() => setTab("agenda")} style={{ color: tab === "agenda" ? "#D4AF37" : "white" }}>Agenda</button>
+        <button onClick={() => setTab("barberos")} style={{ color: tab === "barberos" ? "#D4AF37" : "white" }}>Barberos</button>
+        <button onClick={() => setTab("caja")} style={{ color: tab === "caja" ? "#D4AF37" : "white" }}>Caja</button>
       </div>
 
     </div>
   )
 }
 
+/* ========================= AGENDA ========================= */
+
 function Agenda() {
-  const [turnos, setTurnos] = useState(() => {
-    return JSON.parse(localStorage.getItem("turnos")) || []
-  })
+  const [turnos, setTurnos] = useState(() => JSON.parse(localStorage.getItem("turnos")) || [])
 
   const [nombre, setNombre] = useState("")
   const [hora, setHora] = useState("")
   const [servicio, setServicio] = useState("Corte")
   const [barbero, setBarbero] = useState("")
 
-  const precios = {
-    Corte: 5000,
-    Barba: 3000
-  }
+  const precios = { Corte: 5000, Barba: 3000 }
 
-  const guardarTurnos = (nuevos) => {
-    setTurnos(nuevos)
-    localStorage.setItem("turnos", JSON.stringify(nuevos))
+  const guardar = (data) => {
+    setTurnos(data)
+    localStorage.setItem("turnos", JSON.stringify(data))
   }
 
   const agregarTurno = () => {
@@ -115,22 +83,24 @@ function Agenda() {
       hora,
       servicio,
       barbero,
-      estado: "ESPERANDO"
+      estado: "ESPERANDO",
+      cobrado: false
     }
 
-    guardarTurnos([nuevo, ...turnos])
+    guardar([nuevo, ...turnos])
     setNombre("")
     setHora("")
   }
 
-  const cobrarServicio = (t) => {
-    const precio = precios[t.servicio] || 0
+  const cobrar = (t) => {
+    if (t.cobrado) return
 
-    // CAJA
-    const totalActual = Number(localStorage.getItem("total")) || 0
-    const movimientos = JSON.parse(localStorage.getItem("movimientos")) || []
+    const precio = precios[t.servicio]
 
-    const nuevoTotal = totalActual + precio
+    let total = Number(localStorage.getItem("total")) || 0
+    let movimientos = JSON.parse(localStorage.getItem("movimientos")) || []
+
+    total += precio
 
     const nuevoMov = {
       servicio: t.servicio,
@@ -139,13 +109,12 @@ function Agenda() {
       barbero: t.barbero
     }
 
-    localStorage.setItem("total", nuevoTotal)
+    localStorage.setItem("total", total)
     localStorage.setItem("movimientos", JSON.stringify([nuevoMov, ...movimientos]))
 
-    // BARBEROS
-    const barberos = JSON.parse(localStorage.getItem("barberos")) || []
+    let barberos = JSON.parse(localStorage.getItem("barberos")) || []
 
-    const actualizados = barberos.map(b => {
+    barberos = barberos.map(b => {
       if (b.nombre === t.barbero) {
         return {
           ...b,
@@ -156,19 +125,54 @@ function Agenda() {
       return b
     })
 
-    localStorage.setItem("barberos", JSON.stringify(actualizados))
+    localStorage.setItem("barberos", JSON.stringify(barberos))
+  }
+
+  const deshacer = (t) => {
+    if (!t.cobrado) return
+
+    const precio = precios[t.servicio]
+
+    let total = Number(localStorage.getItem("total")) || 0
+    let movimientos = JSON.parse(localStorage.getItem("movimientos")) || []
+
+    total -= precio
+    movimientos.shift()
+
+    localStorage.setItem("total", total)
+    localStorage.setItem("movimientos", JSON.stringify(movimientos))
+
+    let barberos = JSON.parse(localStorage.getItem("barberos")) || []
+
+    barberos = barberos.map(b => {
+      if (b.nombre === t.barbero) {
+        return {
+          ...b,
+          servicios: Math.max(0, b.servicios - 1),
+          ganado: Math.max(0, (b.ganado || 0) - precio)
+        }
+      }
+      return b
+    })
+
+    localStorage.setItem("barberos", JSON.stringify(barberos))
   }
 
   const cambiarEstado = (i, estado) => {
     const nuevos = [...turnos]
-    nuevos[i].estado = estado
 
-    // SI SE MARCA COMO EN CURSO → COBRA
-    if (estado === "EN CURSO") {
-      cobrarServicio(nuevos[i])
+    if (estado === "EN CURSO" && !nuevos[i].cobrado) {
+      cobrar(nuevos[i])
+      nuevos[i].cobrado = true
     }
 
-    guardarTurnos(nuevos)
+    nuevos[i].estado = estado
+    guardar(nuevos)
+  }
+
+  const eliminar = (i) => {
+    const nuevos = turnos.filter((_, index) => index !== i)
+    guardar(nuevos)
   }
 
   const abrirWhatsApp = (t) => {
@@ -181,13 +185,12 @@ function Agenda() {
 
   return (
     <div>
-
       <h2>Agenda</h2>
 
-      {/* FORM */}
       <div style={{ marginBottom: 20 }}>
         <input placeholder="Nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} />
-        <input placeholder="Hora" value={hora} onChange={(e) => setHora(e.target.value)} />
+        
+        <input type="time" value={hora} onChange={(e) => setHora(e.target.value)} style={{ marginLeft: 10 }} />
 
         <select value={servicio} onChange={(e) => setServicio(e.target.value)}>
           <option>Corte</option>
@@ -196,35 +199,33 @@ function Agenda() {
 
         <select value={barbero} onChange={(e) => setBarbero(e.target.value)}>
           <option value="">Barbero</option>
-          {barberos.map((b, i) => (
-            <option key={i}>{b.nombre}</option>
-          ))}
+          {barberos.map((b, i) => <option key={i}>{b.nombre}</option>)}
         </select>
 
         <button onClick={agregarTurno}>Agregar</button>
       </div>
 
-      {/* LISTA */}
       {turnos.map((t, i) => (
-        <div key={i} style={{
-          background: "#111",
-          padding: 12,
-          borderRadius: 10,
-          marginBottom: 10
-        }}>
+        <div key={i} style={{ background: "#111", padding: 12, borderRadius: 10, marginBottom: 10 }}>
           <strong>{t.nombre}</strong> - {t.hora} - {t.servicio} - {t.barbero}
 
           <div style={{ marginTop: 10 }}>
-            <button onClick={() => cambiarEstado(i, "CONFIRMADO")}>
-              Confirmar
-            </button>
+            <button onClick={() => cambiarEstado(i, "CONFIRMADO")}>Confirmar</button>
 
             <button onClick={() => cambiarEstado(i, "EN CURSO")} style={{ marginLeft: 5 }}>
-              En curso (cobra)
+              En curso
             </button>
 
             <button onClick={() => abrirWhatsApp(t)} style={{ marginLeft: 5 }}>
               WhatsApp
+            </button>
+
+            <button onClick={() => eliminar(i)} style={{ marginLeft: 5 }}>
+              Eliminar
+            </button>
+
+            <button onClick={() => deshacer(t)} style={{ marginLeft: 5 }}>
+              Deshacer cobro
             </button>
           </div>
         </div>
@@ -232,6 +233,8 @@ function Agenda() {
     </div>
   )
 }
+
+/* ========================= CAJA ========================= */
 
 function Caja() {
   const [total, setTotal] = useState(() => Number(localStorage.getItem("total")) || 0)
@@ -245,12 +248,20 @@ function Caja() {
   }
 
   const cobrar = (servicio, precio) => {
-    const nuevoTotal = total + precio
     const nuevo = { servicio, precio, hora: new Date().toLocaleTimeString() }
-    guardar(nuevoTotal, [nuevo, ...movimientos])
+    guardar(total + precio, [nuevo, ...movimientos])
   }
 
   const cerrarCaja = () => {
+    const data = { total, movimientos }
+    const blob = new Blob([JSON.stringify(data)], { type: "application/json" })
+    const url = URL.createObjectURL(blob)
+
+    const a = document.createElement("a")
+    a.href = url
+    a.download = "cierre-caja.json"
+    a.click()
+
     guardar(0, [])
   }
 
@@ -275,18 +286,20 @@ function Caja() {
   )
 }
 
+/* ========================= BARBEROS ========================= */
+
 function Barberos() {
   const [barberos, setBarberos] = useState(() => JSON.parse(localStorage.getItem("barberos")) || [])
   const [nombre, setNombre] = useState("")
 
-  const guardar = (nuevos) => {
-    setBarberos(nuevos)
-    localStorage.setItem("barberos", JSON.stringify(nuevos))
+  const guardar = (data) => {
+    setBarberos(data)
+    localStorage.setItem("barberos", JSON.stringify(data))
   }
 
   const agregar = () => {
     if (!nombre) return
-    guardar([...barberos, { nombre, servicios: 0 }])
+    guardar([...barberos, { nombre, servicios: 0, ganado: 0 }])
     setNombre("")
   }
 
@@ -298,8 +311,10 @@ function Barberos() {
       <button onClick={agregar} style={{ marginLeft: 10 }}>Agregar</button>
 
       {barberos.map((b, i) => (
-        <div key={i} style={{ marginTop: 10 }}>
-          {b.nombre} - Servicios: {b.servicios}
+        <div key={i} style={{ marginTop: 10, background: "#111", padding: 10, borderRadius: 10 }}>
+          <strong>{b.nombre}</strong>
+          <p>Servicios: {b.servicios}</p>
+          <p>Total generado: ${b.ganado}</p>
         </div>
       ))}
     </div>
