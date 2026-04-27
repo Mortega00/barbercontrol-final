@@ -1,5 +1,54 @@
 import { useState } from "react"
 
+/* ========================= ESTILOS PRO ========================= */
+
+const styles = {
+  container: {
+    background: "#0A0A0A",
+    color: "white",
+    minHeight: "100vh",
+    display: "flex",
+    flexDirection: "column"
+  },
+
+  card: {
+    background: "#111",
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 12,
+    border: "1px solid #222"
+  },
+
+  input: {
+    background: "#111",
+    border: "1px solid #333",
+    color: "white",
+    padding: 10,
+    borderRadius: 8
+  },
+
+  button: {
+    background: "#D4AF37",
+    color: "black",
+    border: "none",
+    padding: "8px 12px",
+    borderRadius: 8,
+    cursor: "pointer",
+    fontWeight: "bold"
+  },
+
+  buttonGhost: {
+    background: "transparent",
+    border: "1px solid #333",
+    color: "white",
+    padding: "6px 10px",
+    borderRadius: 8,
+    cursor: "pointer"
+  }
+}
+
+/* ========================= APP ========================= */
+
 function App() {
   const [tab, setTab] = useState("agenda")
 
@@ -20,23 +69,30 @@ function App() {
   }
 
   return (
-    <div style={{ background: "#0A0A0A", color: "white", minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+    <div style={styles.container}>
 
       {/* HEADER */}
-      <div style={{ padding: 15, borderBottom: "1px solid #222", display: "flex", justifyContent: "space-between" }}>
+      <div style={{
+        padding: 20,
+        borderBottom: "1px solid #222",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center"
+      }}>
         <h2 style={{ color: "#D4AF37" }}>BARBERCONTROL</h2>
 
         <div onClick={descargarRespaldo} style={{
-          background: "#222",
+          background: "#111",
+          border: "1px solid #333",
           borderRadius: "50%",
-          width: 35,
-          height: 35,
+          width: 40,
+          height: 40,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           cursor: "pointer"
         }}>
-          M
+          ⚙
         </div>
       </div>
 
@@ -48,10 +104,24 @@ function App() {
       </div>
 
       {/* NAVBAR */}
-      <div style={{ display: "flex", justifyContent: "space-around", padding: 10, borderTop: "1px solid #222" }}>
-        <button onClick={() => setTab("agenda")} style={{ color: tab === "agenda" ? "#D4AF37" : "white" }}>Agenda</button>
-        <button onClick={() => setTab("barberos")} style={{ color: tab === "barberos" ? "#D4AF37" : "white" }}>Barberos</button>
-        <button onClick={() => setTab("caja")} style={{ color: tab === "caja" ? "#D4AF37" : "white" }}>Caja</button>
+      <div style={{
+        display: "flex",
+        justifyContent: "space-around",
+        padding: 15,
+        borderTop: "1px solid #222"
+      }}>
+        {["agenda", "barberos", "caja"].map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            style={{
+              ...styles.buttonGhost,
+              color: tab === t ? "#D4AF37" : "#777"
+            }}
+          >
+            {t.toUpperCase()}
+          </button>
+        ))}
       </div>
 
     </div>
@@ -128,48 +198,6 @@ function Agenda() {
     localStorage.setItem("barberos", JSON.stringify(barberos))
   }
 
-  const deshacer = (t) => {
-    if (!t.cobrado) return
-
-    const precio = precios[t.servicio]
-
-    let total = Number(localStorage.getItem("total")) || 0
-    let movimientos = JSON.parse(localStorage.getItem("movimientos")) || []
-
-    total -= precio
-    movimientos.shift()
-
-    localStorage.setItem("total", total)
-    localStorage.setItem("movimientos", JSON.stringify(movimientos))
-
-    let barberos = JSON.parse(localStorage.getItem("barberos")) || []
-
-    barberos = barberos.map(b => {
-      if (b.nombre === t.barbero) {
-        return {
-          ...b,
-          servicios: Math.max(0, b.servicios - 1),
-          ganado: Math.max(0, (b.ganado || 0) - precio)
-        }
-      }
-      return b
-    })
-
-    localStorage.setItem("barberos", JSON.stringify(barberos))
-  }
-
-  const cambiarEstado = (i, estado) => {
-    const nuevos = [...turnos]
-
-    if (estado === "EN CURSO" && !nuevos[i].cobrado) {
-      cobrar(nuevos[i])
-      nuevos[i].cobrado = true
-    }
-
-    nuevos[i].estado = estado
-    guardar(nuevos)
-  }
-
   const eliminar = (i) => {
     const nuevos = turnos.filter((_, index) => index !== i)
     guardar(nuevos)
@@ -187,46 +215,37 @@ function Agenda() {
     <div>
       <h2>Agenda</h2>
 
-      <div style={{ marginBottom: 20 }}>
-        <input placeholder="Nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} />
-        
-        <input type="time" value={hora} onChange={(e) => setHora(e.target.value)} style={{ marginLeft: 10 }} />
+      {/* FORM */}
+      <div style={{ ...styles.card, display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <input style={styles.input} placeholder="Nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} />
+        <input type="time" style={styles.input} value={hora} onChange={(e) => setHora(e.target.value)} />
 
-        <select value={servicio} onChange={(e) => setServicio(e.target.value)}>
+        <select style={styles.input} value={servicio} onChange={(e) => setServicio(e.target.value)}>
           <option>Corte</option>
           <option>Barba</option>
         </select>
 
-        <select value={barbero} onChange={(e) => setBarbero(e.target.value)}>
+        <select style={styles.input} value={barbero} onChange={(e) => setBarbero(e.target.value)}>
           <option value="">Barbero</option>
           {barberos.map((b, i) => <option key={i}>{b.nombre}</option>)}
         </select>
 
-        <button onClick={agregarTurno}>Agregar</button>
+        <button style={styles.button} onClick={agregarTurno}>+ Agregar</button>
       </div>
 
+      {/* LISTA */}
       {turnos.map((t, i) => (
-        <div key={i} style={{ background: "#111", padding: 12, borderRadius: 10, marginBottom: 10 }}>
-          <strong>{t.nombre}</strong> - {t.hora} - {t.servicio} - {t.barbero}
+        <div key={i} style={styles.card}>
+          <strong>{t.nombre}</strong>
 
-          <div style={{ marginTop: 10 }}>
-            <button onClick={() => cambiarEstado(i, "CONFIRMADO")}>Confirmar</button>
+          <p style={{ color: "#aaa" }}>
+            {t.hora} · {t.servicio} · {t.barbero}
+          </p>
 
-            <button onClick={() => cambiarEstado(i, "EN CURSO")} style={{ marginLeft: 5 }}>
-              En curso
-            </button>
-
-            <button onClick={() => abrirWhatsApp(t)} style={{ marginLeft: 5 }}>
-              WhatsApp
-            </button>
-
-            <button onClick={() => eliminar(i)} style={{ marginLeft: 5 }}>
-              Eliminar
-            </button>
-
-            <button onClick={() => deshacer(t)} style={{ marginLeft: 5 }}>
-              Deshacer cobro
-            </button>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <button style={styles.buttonGhost} onClick={() => cobrar(t)}>Cobrar</button>
+            <button style={styles.buttonGhost} onClick={() => abrirWhatsApp(t)}>WhatsApp</button>
+            <button style={styles.buttonGhost} onClick={() => eliminar(i)}>Eliminar</button>
           </div>
         </div>
       ))}
@@ -240,48 +259,22 @@ function Caja() {
   const [total, setTotal] = useState(() => Number(localStorage.getItem("total")) || 0)
   const [movimientos, setMovimientos] = useState(() => JSON.parse(localStorage.getItem("movimientos")) || [])
 
-  const guardar = (t, m) => {
-    setTotal(t)
-    setMovimientos(m)
-    localStorage.setItem("total", t)
-    localStorage.setItem("movimientos", JSON.stringify(m))
-  }
-
-  const cobrar = (servicio, precio) => {
-    const nuevo = { servicio, precio, hora: new Date().toLocaleTimeString() }
-    guardar(total + precio, [nuevo, ...movimientos])
-  }
-
-  const cerrarCaja = () => {
-    const data = { total, movimientos }
-    const blob = new Blob([JSON.stringify(data)], { type: "application/json" })
-    const url = URL.createObjectURL(blob)
-
-    const a = document.createElement("a")
-    a.href = url
-    a.download = "cierre-caja.json"
-    a.click()
-
-    guardar(0, [])
-  }
-
   return (
     <div>
-      <h2>Caja</h2>
+      <div style={styles.card}>
+        <h2>Total del día</h2>
+        <h1 style={{ color: "#D4AF37" }}>${total}</h1>
+      </div>
 
-      <h3>Total: ${total}</h3>
+      <div style={styles.card}>
+        <h3>Movimientos</h3>
 
-      <button onClick={() => cobrar("Corte", 5000)}>+ Corte</button>
-      <button onClick={() => cobrar("Barba", 3000)} style={{ marginLeft: 10 }}>+ Barba</button>
-      <button onClick={cerrarCaja} style={{ marginLeft: 10 }}>Cerrar caja</button>
-
-      <h4 style={{ marginTop: 20 }}>Movimientos</h4>
-
-      {movimientos.map((m, i) => (
-        <div key={i}>
-          {m.servicio} - ${m.precio} - {m.hora}
-        </div>
-      ))}
+        {movimientos.map((m, i) => (
+          <div key={i} style={{ borderBottom: "1px solid #222", padding: 5 }}>
+            {m.servicio} - ${m.precio} - {m.hora}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
@@ -307,14 +300,16 @@ function Barberos() {
     <div>
       <h2>Barberos</h2>
 
-      <input placeholder="Nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} />
-      <button onClick={agregar} style={{ marginLeft: 10 }}>Agregar</button>
+      <div style={styles.card}>
+        <input style={styles.input} placeholder="Nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} />
+        <button style={{ ...styles.button, marginLeft: 10 }} onClick={agregar}>Agregar</button>
+      </div>
 
       {barberos.map((b, i) => (
-        <div key={i} style={{ marginTop: 10, background: "#111", padding: 10, borderRadius: 10 }}>
+        <div key={i} style={styles.card}>
           <strong>{b.nombre}</strong>
           <p>Servicios: {b.servicios}</p>
-          <p>Total generado: ${b.ganado}</p>
+          <p>Total: ${b.ganado}</p>
         </div>
       ))}
     </div>
