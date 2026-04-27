@@ -33,6 +33,41 @@ function App() {
     setMovimientos(nuevos)
   }
 
+  const cerrarCaja = () => {
+    if (movimientos.length === 0) {
+      alert("No hay movimientos para cerrar.")
+      return
+    }
+
+    const resumen = {
+      totalLocal: total,
+      totalServicios: movimientos.length,
+      movimientos,
+      fecha: new Date().toLocaleDateString()
+    }
+
+    // DESCARGA JSON
+    const dataStr =
+      "data:text/json;charset=utf-8," +
+      encodeURIComponent(JSON.stringify(resumen, null, 2))
+
+    const downloadAnchorNode = document.createElement("a")
+    downloadAnchorNode.setAttribute("href", dataStr)
+    downloadAnchorNode.setAttribute(
+      "download",
+      "cierre_caja_" + resumen.fecha + ".json"
+    )
+    document.body.appendChild(downloadAnchorNode)
+    downloadAnchorNode.click()
+    downloadAnchorNode.remove()
+
+    alert("✅ Caja cerrada y respaldo descargado")
+
+    // LIMPIAR
+    setTotal(0)
+    setMovimientos([])
+  }
+
   return (
     <div style={{ padding: 20, background: "#0A0A0A", color: "white", minHeight: "100vh" }}>
       
@@ -56,6 +91,13 @@ function App() {
 
       <button onClick={() => cobrar("Barba", 3000)} style={{ marginLeft: 10 }}>
         + Barba ($3000)
+      </button>
+
+      <button 
+        onClick={cerrarCaja} 
+        style={{ marginLeft: 10, background: "#D4AF37", color: "black" }}
+      >
+        🔒 Cerrar Caja
       </button>
 
       <h3 style={{ marginTop: 20 }}>Movimientos</h3>
