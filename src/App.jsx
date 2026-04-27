@@ -2,11 +2,70 @@ import { useState, useEffect } from "react"
 
 /* ================= HELPERS ================= */
 
-const getLS = (key, def) => JSON.parse(localStorage.getItem(key)) || def
+const getLS = (key, def) => {
+  try {
+    const val = localStorage.getItem(key)
+    return val ? JSON.parse(val) : def
+  } catch {
+    return def
+  }
+}
+
 const setLS = (key, val) => localStorage.setItem(key, JSON.stringify(val))
 
 const formato = (n) =>
   new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(n)
+
+/* ================= UI BASE ================= */
+
+const container = {
+  background: "#0A0A0A",
+  color: "white",
+  minHeight: "100vh",
+  fontFamily: "Inter, sans-serif",
+  display: "flex",
+  flexDirection: "column"
+}
+
+const content = {
+  maxWidth: 500,
+  margin: "0 auto",
+  width: "100%",
+  padding: 20
+}
+
+const card = {
+  background: "#141414",
+  borderRadius: 12,
+  padding: 15,
+  marginBottom: 12,
+  border: "1px solid #222"
+}
+
+const input = {
+  width: "100%",
+  padding: 10,
+  borderRadius: 8,
+  border: "1px solid #333",
+  background: "#111",
+  color: "white"
+}
+
+const button = {
+  background: "#D4AF37",
+  color: "black",
+  border: "none",
+  padding: 10,
+  borderRadius: 8,
+  fontWeight: "bold",
+  cursor: "pointer"
+}
+
+const row = {
+  display: "flex",
+  gap: 10,
+  marginTop: 10
+}
 
 /* ================= APP ================= */
 
@@ -14,17 +73,35 @@ export default function App() {
   const [tab, setTab] = useState("agenda")
 
   return (
-    <div style={{ background: "#0A0A0A", color: "white", minHeight: "100vh", padding: 20 }}>
-      <h2 style={{ color: "#D4AF37" }}>BARBERCONTROL</h2>
+    <div style={container}>
+      <div style={{ ...content, paddingBottom: 80 }}>
+        <h2 style={{ color: "#D4AF37" }}>BARBERCONTROL</h2>
 
-      {tab === "agenda" && <Agenda />}
-      {tab === "caja" && <Caja />}
-      {tab === "barberos" && <Barberos />}
-      {tab === "config" && <Config />}
+        {tab === "agenda" && <Agenda />}
+        {tab === "caja" && <Caja />}
+        {tab === "barberos" && <Barberos />}
+        {tab === "config" && <Config />}
+      </div>
 
-      <div style={{ display: "flex", justifyContent: "space-around", marginTop: 20 }}>
+      {/* NAV */}
+      <div style={{
+        position: "fixed",
+        bottom: 0,
+        width: "100%",
+        background: "#050505",
+        borderTop: "1px solid #222",
+        display: "flex",
+        justifyContent: "space-around",
+        padding: 10
+      }}>
         {["agenda", "barberos", "caja", "config"].map(t => (
-          <button key={t} onClick={() => setTab(t)}>{t}</button>
+          <button key={t} onClick={() => setTab(t)} style={{
+            background: "none",
+            border: "none",
+            color: tab === t ? "#D4AF37" : "#555"
+          }}>
+            {t.toUpperCase()}
+          </button>
         ))}
       </div>
     </div>
@@ -36,7 +113,7 @@ export default function App() {
 function Config() {
   const [nombre, setNombre] = useState(localStorage.getItem("nombre") || "BarberControl")
   const [telefono, setTelefono] = useState(localStorage.getItem("telefono") || "")
-  const [mensaje, setMensaje] = useState(localStorage.getItem("mensaje") || "Hola 💈 quiero un turno")
+  const [mensaje, setMensaje] = useState(localStorage.getItem("mensaje") || "")
 
   const [servicios, setServicios] = useState(() =>
     getLS("servicios", [
@@ -53,84 +130,21 @@ function Config() {
     alert("Guardado")
   }
 
-  const agregarServicio = () => {
-    setServicios([...servicios, { nombre: "", precio: 0 }])
-  }
-
-  const eliminarServicio = (i) => {
-    if(confirm("Eliminar servicio?"))
-      setServicios(servicios.filter((_, idx) => idx !== i))
-  }
-
-  const backup = () => {
-    const data = {
-      turnos: getLS("turnos", []),
-      movimientos: getLS("movimientos", []),
-      barberos: getLS("barberos", []),
-      servicios,
-      nombre,
-      telefono
-    }
-
-    const blob = new Blob([JSON.stringify(data, null, 2)])
-    const a = document.createElement("a")
-    a.href = URL.createObjectURL(blob)
-    a.download = "backup.json"
-    a.click()
-  }
-
-  const restore = (e) => {
-    const file = e.target.files[0]
-    const reader = new FileReader()
-
-    reader.onload = () => {
-      const data = JSON.parse(reader.result)
-      Object.keys(data).forEach(k => setLS(k, data[k]))
-      window.location.reload()
-    }
-
-    reader.readAsText(file)
-  }
-
-  const reset = () => {
-    if(confirm("Reset total?")) {
-      localStorage.clear()
-      window.location.reload()
-    }
-  }
-
   return (
-    <div>
-      <h2>Configuración</h2>
+    <div style={card}>
+      <h3>Configuración</h3>
 
-      <input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Nombre" />
-      <input value={telefono} onChange={e => setTelefono(e.target.value)} placeholder="WhatsApp" />
-      <textarea value={mensaje} onChange={e => setMensaje(e.target.value)} />
+      <input style={input} value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Nombre barbería" />
+      <br /><br />
 
-      <h3>Servicios</h3>
-      {servicios.map((s, i) => (
-        <div key={i}>
-          <input value={s.nombre} onChange={e => {
-            const copy = [...servicios]
-            copy[i].nombre = e.target.value
-            setServicios(copy)
-          }} />
-          <input type="number" value={s.precio} onChange={e => {
-            const copy = [...servicios]
-            copy[i].precio = Number(e.target.value)
-            setServicios(copy)
-          }} />
-          <button onClick={() => eliminarServicio(i)}>X</button>
-        </div>
-      ))}
+      <input style={input} value={telefono} onChange={e => setTelefono(e.target.value)} placeholder="WhatsApp" />
+      <br /><br />
 
-      <button onClick={agregarServicio}>Agregar</button>
+      <textarea style={input} value={mensaje} onChange={e => setMensaje(e.target.value)} placeholder="Mensaje automático" />
 
       <br /><br />
-      <button onClick={guardar}>Guardar</button>
-      <button onClick={backup}>Backup</button>
-      <input type="file" onChange={restore} />
-      <button onClick={reset}>Reset</button>
+
+      <button style={button} onClick={guardar}>Guardar</button>
     </div>
   )
 }
@@ -147,8 +161,6 @@ function Agenda() {
   const [servicio, setServicio] = useState("")
   const [barbero, setBarbero] = useState("")
 
-  const clientes = [...new Set(turnos.map(t => t.nombre))] // mini CRM
-
   const guardar = (data) => {
     setTurnos(data)
     setLS("turnos", data)
@@ -160,47 +172,33 @@ function Agenda() {
     guardar([{ id: Date.now(), nombre, hora, servicio, barbero }, ...turnos])
   }
 
-  const cobrar = (t) => {
-    const s = servicios.find(x => x.nombre === t.servicio)
-    if (!s) return
-
-    let total = Number(localStorage.getItem("total")) || 0
-    let mov = getLS("movimientos", [])
-
-    total += s.precio
-    mov.unshift({ ...t, precio: s.precio })
-
-    setLS("total", total)
-    setLS("movimientos", mov)
-
-    window.dispatchEvent(new Event("sync"))
-  }
-
   return (
     <div>
-      <h2>Agenda</h2>
+      <div style={card}>
+        <h3>Nuevo Turno</h3>
 
-      <input list="clientes" value={nombre} onChange={e => setNombre(e.target.value)} />
-      <datalist id="clientes">
-        {clientes.map((c, i) => <option key={i} value={c} />)}
-      </datalist>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <input style={input} placeholder="Cliente" value={nombre} onChange={e => setNombre(e.target.value)} />
+          <input style={input} type="time" onChange={e => setHora(e.target.value)} />
 
-      <input type="time" onChange={e => setHora(e.target.value)} />
+          <select style={input} onChange={e => setServicio(e.target.value)}>
+            {servicios.map(s => <option key={s.nombre}>{s.nombre}</option>)}
+          </select>
 
-      <select onChange={e => setServicio(e.target.value)}>
-        {servicios.map(s => <option key={s.nombre}>{s.nombre}</option>)}
-      </select>
+          <select style={input} onChange={e => setBarbero(e.target.value)}>
+            {barberos.map(b => <option key={b.nombre}>{b.nombre}</option>)}
+          </select>
+        </div>
 
-      <select onChange={e => setBarbero(e.target.value)}>
-        {barberos.map(b => <option key={b.nombre}>{b.nombre}</option>)}
-      </select>
-
-      <button onClick={agregar}>Agregar</button>
+        <button style={{ ...button, marginTop: 10, width: "100%" }} onClick={agregar}>
+          Agendar turno
+        </button>
+      </div>
 
       {turnos.map(t => (
-        <div key={t.id}>
-          {t.nombre} - {t.servicio}
-          <button onClick={() => cobrar(t)}>Cobrar</button>
+        <div key={t.id} style={card}>
+          <strong>{t.nombre}</strong>
+          <div style={{ color: "#777" }}>{t.hora} • {t.servicio}</div>
         </div>
       ))}
     </div>
@@ -222,20 +220,15 @@ function Caja() {
     return () => window.removeEventListener("sync", sync)
   }, [])
 
-  const eliminarMov = (i) => {
-    const nuevo = mov.filter((_, idx) => idx !== i)
-    setLS("movimientos", nuevo)
-    setMov(nuevo)
-  }
-
   return (
     <div>
-      <h2>{formato(total)}</h2>
+      <div style={card}>
+        <h2 style={{ color: "#D4AF37" }}>{formato(total)}</h2>
+      </div>
 
       {mov.map((m, i) => (
-        <div key={i}>
+        <div key={i} style={card}>
           {m.servicio} - {formato(m.precio)}
-          <button onClick={() => eliminarMov(i)}>X</button>
         </div>
       ))}
     </div>
@@ -260,15 +253,21 @@ function Barberos() {
 
   return (
     <div>
-      <h2>Barberos</h2>
+      <div style={card}>
+        <h3>Nuevo Barbero</h3>
 
-      <input onChange={e => setNombre(e.target.value)} />
-      <input type="number" value={comision} onChange={e => setComision(e.target.value)} />
+        <input style={input} placeholder="Nombre" onChange={e => setNombre(e.target.value)} />
+        <br /><br />
 
-      <button onClick={agregar}>Agregar</button>
+        <input style={input} type="number" value={comision} onChange={e => setComision(e.target.value)} />
+
+        <button style={{ ...button, marginTop: 10 }} onClick={agregar}>
+          Agregar
+        </button>
+      </div>
 
       {barberos.map((b, i) => (
-        <div key={i}>
+        <div key={i} style={card}>
           {b.nombre} - {b.comision}%
         </div>
       ))}
