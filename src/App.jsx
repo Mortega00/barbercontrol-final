@@ -1,6 +1,6 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 
-/* ========================= ESTILOS PRO ========================= */
+/* ========================= ESTILOS ========================= */
 
 const styles = {
   container: {
@@ -10,7 +10,6 @@ const styles = {
     display: "flex",
     flexDirection: "column"
   },
-
   card: {
     background: "#111",
     borderRadius: 12,
@@ -18,7 +17,6 @@ const styles = {
     marginBottom: 12,
     border: "1px solid #222"
   },
-
   input: {
     background: "#111",
     border: "1px solid #333",
@@ -26,7 +24,6 @@ const styles = {
     padding: 10,
     borderRadius: 8
   },
-
   button: {
     background: "#D4AF37",
     color: "black",
@@ -36,7 +33,6 @@ const styles = {
     cursor: "pointer",
     fontWeight: "bold"
   },
-
   buttonGhost: {
     background: "transparent",
     border: "1px solid #333",
@@ -76,8 +72,7 @@ function App() {
         padding: 20,
         borderBottom: "1px solid #222",
         display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center"
+        justifyContent: "space-between"
       }}>
         <h2 style={{ color: "#D4AF37" }}>BARBERCONTROL</h2>
 
@@ -132,7 +127,6 @@ function App() {
 
 function Agenda() {
   const [turnos, setTurnos] = useState(() => JSON.parse(localStorage.getItem("turnos")) || [])
-
   const [nombre, setNombre] = useState("")
   const [hora, setHora] = useState("")
   const [servicio, setServicio] = useState("Corte")
@@ -143,6 +137,7 @@ function Agenda() {
   const guardar = (data) => {
     setTurnos(data)
     localStorage.setItem("turnos", JSON.stringify(data))
+    window.dispatchEvent(new Event("storage-update")) // 🔥 sincronización
   }
 
   const agregarTurno = () => {
@@ -165,6 +160,8 @@ function Agenda() {
   const cobrar = (t) => {
     if (t.cobrado) return
 
+    navigator.vibrate?.(50) // 🔥 vibración
+
     const precio = precios[t.servicio]
 
     let total = Number(localStorage.getItem("total")) || 0
@@ -182,20 +179,9 @@ function Agenda() {
     localStorage.setItem("total", total)
     localStorage.setItem("movimientos", JSON.stringify([nuevoMov, ...movimientos]))
 
-    let barberos = JSON.parse(localStorage.getItem("barberos")) || []
+    window.dispatchEvent(new Event("storage-update")) // 🔥 sync
 
-    barberos = barberos.map(b => {
-      if (b.nombre === t.barbero) {
-        return {
-          ...b,
-          servicios: b.servicios + 1,
-          ganado: (b.ganado || 0) + precio
-        }
-      }
-      return b
-    })
-
-    localStorage.setItem("barberos", JSON.stringify(barberos))
+    t.cobrado = true
   }
 
   const eliminar = (i) => {
@@ -204,8 +190,10 @@ function Agenda() {
   }
 
   const abrirWhatsApp = (t) => {
+    const telefonoBarberia = localStorage.getItem("telefono") || "54911XXXXXXXX"
+
     const mensaje = `Hola ${t.nombre} 💈, confirmamos tu turno para hoy a las ${t.hora}. ¡Te esperamos! ✨`
-    const url = `https://api.whatsapp.com/send?phone=541130700900&text=${encodeURIComponent(mensaje)}`
+    const url = `https://wa.me/${telefonoBarberia}?text=${encodeURIComponent(mensaje)}`
     window.open(url, "_blank")
   }
 
@@ -242,7 +230,7 @@ function Agenda() {
             {t.hora} · {t.servicio} · {t.barbero}
           </p>
 
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 6 }}>
             <button style={styles.buttonGhost} onClick={() => cobrar(t)}>Cobrar</button>
             <button style={styles.buttonGhost} onClick={() => abrirWhatsApp(t)}>WhatsApp</button>
             <button style={styles.buttonGhost} onClick={() => eliminar(i)}>Eliminar</button>
@@ -259,11 +247,55 @@ function Caja() {
   const [total, setTotal] = useState(() => Number(localStorage.getItem("total")) || 0)
   const [movimientos, setMovimientos] = useState(() => JSON.parse(localStorage.getItem("movimientos")) || [])
 
+  // 🔥 sincronización en vivo
+  useEffect(() => {
+    const actualizar = () => {
+      setTotal(Number(localStorage.getItem("total")) || 0)
+      setMovimientos(JSON.parse(localStorage.getItem("movimientos")) || [])
+    }
+
+    window.addEventListener("storage-update", actualizar)
+    return () => window.removeEventListener("storage-update", actualizar)
+  }, [])
+
+  const cerrarCaja = () => {
+    const data = {
+      total,
+      movimientos,
+      fecha: new Date().toLocaleDateString()
+    }
+
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" })
+    const a = document.createElement("a")
+    a.href = URL.createObjectURL(blob)
+    a.download = `cierre-${new Date().toLocaleDateString()}.json`
+    a.click()
+
+    localStorage.setItem("total", 0)
+    localStorage.setItem("movimientos", JSON.stringify([]))
+
+    setTotal(0)
+    setMovimientos([])
+
+    alert("Caja cerrada y respaldo descargado")
+  }
+
+  const formato = (n) =>
+    new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(n)
+
   return (
     <div>
+
       <div style={styles.card}>
         <h2>Total del día</h2>
-        <h1 style={{ color: "#D4AF37" }}>${total}</h1>
+        <h1 style={{ color: "#D4AF37" }}>{formato(total)}</h1>
+
+        <button
+          style={{ ...styles.button, width: "100%", marginTop: 10 }}
+          onClick={cerrarCaja}
+        >
+          CERRAR DÍA
+        </button>
       </div>
 
       <div style={styles.card}>
@@ -271,7 +303,7 @@ function Caja() {
 
         {movimientos.map((m, i) => (
           <div key={i} style={{ borderBottom: "1px solid #222", padding: 5 }}>
-            {m.servicio} - ${m.precio} - {m.hora}
+            {m.servicio} - {formato(m.precio)} - {m.hora}
           </div>
         ))}
       </div>
