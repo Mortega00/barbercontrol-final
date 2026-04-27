@@ -47,41 +47,150 @@ function App() {
         padding: 10,
         borderTop: "1px solid #222"
       }}>
-        <button onClick={() => setTab("agenda")}>📅</button>
-        <button onClick={() => setTab("barberos")}>👥</button>
-        <button onClick={() => setTab("caja")}>💰</button>
+        <button onClick={() => setTab("agenda")} style={{ color: tab === "agenda" ? "#D4AF37" : "white" }}>
+  Agenda
+</button>
+
+<button onClick={() => setTab("barberos")} style={{ color: tab === "barberos" ? "#D4AF37" : "white" }}>
+  Barberos
+</button>
+
+<button onClick={() => setTab("caja")} style={{ color: tab === "caja" ? "#D4AF37" : "white" }}>
+  Caja
+</button>
       </div>
 
     </div>
   )
 }
 function Agenda() {
+  const [turnos, setTurnos] = useState(() => {
+    return JSON.parse(localStorage.getItem("turnos")) || []
+  })
+
+  const [nombre, setNombre] = useState("")
+  const [hora, setHora] = useState("")
+  const [servicio, setServicio] = useState("Corte")
+
+  const guardar = (nuevos) => {
+    setTurnos(nuevos)
+    localStorage.setItem("turnos", JSON.stringify(nuevos))
+  }
+
+  const agregarTurno = () => {
+    if (!nombre || !hora) return
+
+    const nuevo = {
+      nombre,
+      hora,
+      servicio,
+      estado: "ESPERANDO"
+    }
+
+    guardar([nuevo, ...turnos])
+    setNombre("")
+    setHora("")
+  }
+
+  const cambiarEstado = (i, estado) => {
+    const nuevos = [...turnos]
+    nuevos[i].estado = estado
+    guardar(nuevos)
+  }
+
+  const eliminar = (i) => {
+    const nuevos = turnos.filter((_, index) => index !== i)
+    guardar(nuevos)
+  }
+
+  const abrirWhatsApp = (t) => {
+    const mensaje = `Hola ${t.nombre} 💈, quiero confirmar tu turno para hoy a las ${t.hora}. ¡Te esperamos! ✨`
+
+    const url = `https://api.whatsapp.com/send?phone=541130700900&text=${encodeURIComponent(mensaje)}`
+    window.open(url, "_blank")
+  }
+
+  const colorEstado = (estado) => {
+    if (estado === "CONFIRMADO") return "#D4AF37"
+    if (estado === "EN CURSO") return "#3b82f6"
+    return "#555"
+  }
+
   return (
     <div>
-      <h2>Lunes 27 de Abril</h2>
 
-      {/* CARDS */}
-      <div style={{ display: "flex", gap: 10, marginTop: 15 }}>
-        
-        <Card titulo="TOTAL" valor="0" />
-        <Card titulo="EN CURSO" valor="0" />
-        <Card titulo="PENDIENTES" valor="0" />
+      <h2>Agenda</h2>
 
+      {/* FORM */}
+      <div style={{ marginBottom: 20 }}>
+        <input
+          placeholder="Nombre"
+          value={nombre}
+          onChange={(e) => setNombre(e.target.value)}
+        />
+        <input
+          placeholder="Hora"
+          value={hora}
+          onChange={(e) => setHora(e.target.value)}
+          style={{ marginLeft: 10 }}
+        />
+        <select
+          value={servicio}
+          onChange={(e) => setServicio(e.target.value)}
+          style={{ marginLeft: 10 }}
+        >
+          <option>Corte</option>
+          <option>Barba</option>
+        </select>
+
+        <button onClick={agregarTurno} style={{ marginLeft: 10 }}>
+          Agregar
+        </button>
       </div>
 
-      {/* VACÍO */}
-      <div style={{ textAlign: "center", marginTop: 40 }}>
-        <div style={{
+      {/* LISTA */}
+      {turnos.length === 0 && (
+        <p style={{ color: "#777" }}>No hay turnos</p>
+      )}
+
+      {turnos.map((t, i) => (
+        <div key={i} style={{
           background: "#111",
-          borderRadius: "50%",
-          width: 80,
-          height: 80,
-          margin: "auto"
-        }} />
+          padding: 12,
+          borderRadius: 10,
+          marginBottom: 10
+        }}>
+          <strong>{t.nombre}</strong> - {t.hora} - {t.servicio}
 
-        <p style={{ marginTop: 15 }}>No hay turnos para hoy</p>
-        <p style={{ color: "#D4AF37" }}>Agregá tu primer turno</p>
-      </div>
+          <div style={{
+            marginTop: 5,
+            background: colorEstado(t.estado),
+            padding: "3px 8px",
+            borderRadius: 5,
+            display: "inline-block"
+          }}>
+            {t.estado}
+          </div>
+
+          <div style={{ marginTop: 10 }}>
+            <button onClick={() => cambiarEstado(i, "CONFIRMADO")}>
+              Confirmar
+            </button>
+
+            <button onClick={() => cambiarEstado(i, "EN CURSO")} style={{ marginLeft: 5 }}>
+              En curso
+            </button>
+
+            <button onClick={() => abrirWhatsApp(t)} style={{ marginLeft: 5 }}>
+              Notificar
+            </button>
+
+            <button onClick={() => eliminar(i)} style={{ marginLeft: 5 }}>
+              Eliminar
+            </button>
+          </div>
+        </div>
+      ))}
     </div>
   )
 }
