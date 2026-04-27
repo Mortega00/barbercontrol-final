@@ -1,71 +1,59 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 
 function App() {
-  const [total, setTotal] = useState(0)
-  const [movimientos, setMovimientos] = useState([])
-  const [barbero, setBarbero] = useState("Fede")
+  const [turnos, setTurnos] = useState([])
+  const [nombre, setNombre] = useState("")
+  const [hora, setHora] = useState("")
+  const [servicio, setServicio] = useState("Corte")
 
-  const comision = 50 // %
+  // Cargar turnos guardados
+  useEffect(() => {
+    const guardados = JSON.parse(localStorage.getItem("turnos")) || []
+    setTurnos(guardados)
+  }, [])
 
-  const cobrar = (servicio, precio) => {
-    const gananciaBarbero = (precio * comision) / 100
-    const gananciaLocal = precio - gananciaBarbero
+  // Guardar en localStorage
+  useEffect(() => {
+    localStorage.setItem("turnos", JSON.stringify(turnos))
+  }, [turnos])
 
-    setTotal(total + gananciaLocal)
+  const agregarTurno = () => {
+    if (!nombre || !hora) return alert("Completá los datos")
 
     const nuevo = {
+      nombre,
+      hora,
       servicio,
-      precio,
-      barbero,
-      gananciaBarbero,
-      gananciaLocal,
-      hora: new Date().toLocaleTimeString()
+      estado: "ESPERANDO"
     }
 
-    setMovimientos([nuevo, ...movimientos])
+    setTurnos([nuevo, ...turnos])
+    setNombre("")
+    setHora("")
   }
 
-  const eliminarMovimiento = (index) => {
-    const mov = movimientos[index]
-    setTotal(total - mov.gananciaLocal)
-
-    const nuevos = movimientos.filter((_, i) => i !== index)
-    setMovimientos(nuevos)
+  const cambiarEstado = (index, nuevoEstado) => {
+    const nuevos = [...turnos]
+    nuevos[index].estado = nuevoEstado
+    setTurnos(nuevos)
   }
 
-  const cerrarCaja = () => {
-    if (movimientos.length === 0) {
-      alert("No hay movimientos para cerrar.")
-      return
-    }
+  const eliminarTurno = (index) => {
+    const nuevos = turnos.filter((_, i) => i !== index)
+    setTurnos(nuevos)
+  }
 
-    const resumen = {
-      totalLocal: total,
-      totalServicios: movimientos.length,
-      movimientos,
-      fecha: new Date().toLocaleDateString()
-    }
-
-    // DESCARGA JSON
-    const dataStr =
-      "data:text/json;charset=utf-8," +
-      encodeURIComponent(JSON.stringify(resumen, null, 2))
-
-    const downloadAnchorNode = document.createElement("a")
-    downloadAnchorNode.setAttribute("href", dataStr)
-    downloadAnchorNode.setAttribute(
-      "download",
-      "cierre_caja_" + resumen.fecha + ".json"
+  const abrirWhatsApp = () => {
+    window.open(
+      "https://wa.me/54911XXXXXXXX?text=Hola%20*Barbería*%20👋%2C%20quiero%20confirmar%20tu%20turno%20para%20hoy.%20¡Te%20esperamos!%20💈",
+      "_blank"
     )
-    document.body.appendChild(downloadAnchorNode)
-    downloadAnchorNode.click()
-    downloadAnchorNode.remove()
+  }
 
-    alert("✅ Caja cerrada y respaldo descargado")
-
-    // LIMPIAR
-    setTotal(0)
-    setMovimientos([])
+  const colorEstado = (estado) => {
+    if (estado === "CONFIRMADO") return "#D4AF37"
+    if (estado === "EN CURSO") return "#3b82f6"
+    return "#555"
   }
 
   return (
@@ -73,46 +61,65 @@ function App() {
       
       <h1>💈 BarberControl</h1>
 
-      <h2>Total del local: ${total}</h2>
-
-      {/* Selector de barbero */}
-      <div style={{ marginBottom: 10 }}>
-        <label>Barbero: </label>
-        <select value={barbero} onChange={(e) => setBarbero(e.target.value)}>
-          <option>Fede</option>
-          <option>Juan</option>
-          <option>Lucas</option>
+      {/* FORMULARIO */}
+      <div style={{ marginBottom: 20 }}>
+        <input
+          placeholder="Nombre"
+          value={nombre}
+          onChange={(e) => setNombre(e.target.value)}
+        />
+        <input
+          placeholder="Hora"
+          value={hora}
+          onChange={(e) => setHora(e.target.value)}
+          style={{ marginLeft: 10 }}
+        />
+        <select
+          value={servicio}
+          onChange={(e) => setServicio(e.target.value)}
+          style={{ marginLeft: 10 }}
+        >
+          <option>Corte</option>
+          <option>Barba</option>
         </select>
+
+        <button onClick={agregarTurno} style={{ marginLeft: 10 }}>
+          Agregar
+        </button>
       </div>
 
-      <button onClick={() => cobrar("Corte", 5000)}>
-        + Corte ($5000)
-      </button>
-
-      <button onClick={() => cobrar("Barba", 3000)} style={{ marginLeft: 10 }}>
-        + Barba ($3000)
-      </button>
-
-      <button 
-        onClick={cerrarCaja} 
-        style={{ marginLeft: 10, background: "#D4AF37", color: "black" }}
-      >
-        🔒 Cerrar Caja
-      </button>
-
-      <h3 style={{ marginTop: 20 }}>Movimientos</h3>
-
-      {movimientos.map((m, i) => (
+      {/* LISTA */}
+      {turnos.map((t, i) => (
         <div key={i} style={{ borderBottom: "1px solid #333", padding: 10 }}>
-          <strong>{m.barbero}</strong> - {m.servicio} - ${m.precio}  
-          <br />
-          💰 Barbero: ${m.gananciaBarbero} | Local: ${m.gananciaLocal}  
-          <br />
-          🕐 {m.hora}
+          <strong>{t.nombre}</strong> - {t.hora} - {t.servicio}
+          
+          <div style={{ marginTop: 5 }}>
+            <span style={{
+              background: colorEstado(t.estado),
+              padding: "3px 8px",
+              borderRadius: 5
+            }}>
+              {t.estado}
+            </span>
+          </div>
 
-          <button onClick={() => eliminarMovimiento(i)} style={{ marginLeft: 10 }}>
-            ❌
-          </button>
+          <div style={{ marginTop: 5 }}>
+            <button onClick={() => cambiarEstado(i, "CONFIRMADO")}>
+              Confirmar
+            </button>
+
+            <button onClick={() => cambiarEstado(i, "EN CURSO")} style={{ marginLeft: 5 }}>
+              En curso
+            </button>
+
+            <button onClick={abrirWhatsApp} style={{ marginLeft: 5 }}>
+              WhatsApp
+            </button>
+
+            <button onClick={() => eliminarTurno(i)} style={{ marginLeft: 5 }}>
+              ❌
+            </button>
+          </div>
         </div>
       ))}
     </div>
