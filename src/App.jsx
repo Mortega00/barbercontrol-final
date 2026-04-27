@@ -95,36 +95,80 @@ function Agenda() {
   const [nombre, setNombre] = useState("")
   const [hora, setHora] = useState("")
   const [servicio, setServicio] = useState("Corte")
+  const [barbero, setBarbero] = useState("")
 
-  const guardar = (nuevos) => {
+  const precios = {
+    Corte: 5000,
+    Barba: 3000
+  }
+
+  const guardarTurnos = (nuevos) => {
     setTurnos(nuevos)
     localStorage.setItem("turnos", JSON.stringify(nuevos))
   }
 
   const agregarTurno = () => {
-    if (!nombre || !hora) return
+    if (!nombre || !hora || !barbero) return
 
     const nuevo = {
       nombre,
       hora,
       servicio,
+      barbero,
       estado: "ESPERANDO"
     }
 
-    guardar([nuevo, ...turnos])
+    guardarTurnos([nuevo, ...turnos])
     setNombre("")
     setHora("")
+  }
+
+  const cobrarServicio = (t) => {
+    const precio = precios[t.servicio] || 0
+
+    // CAJA
+    const totalActual = Number(localStorage.getItem("total")) || 0
+    const movimientos = JSON.parse(localStorage.getItem("movimientos")) || []
+
+    const nuevoTotal = totalActual + precio
+
+    const nuevoMov = {
+      servicio: t.servicio,
+      precio,
+      hora: new Date().toLocaleTimeString(),
+      barbero: t.barbero
+    }
+
+    localStorage.setItem("total", nuevoTotal)
+    localStorage.setItem("movimientos", JSON.stringify([nuevoMov, ...movimientos]))
+
+    // BARBEROS
+    const barberos = JSON.parse(localStorage.getItem("barberos")) || []
+
+    const actualizados = barberos.map(b => {
+      if (b.nombre === t.barbero) {
+        return {
+          ...b,
+          servicios: b.servicios + 1,
+          ganado: (b.ganado || 0) + precio
+        }
+      }
+      return b
+    })
+
+    localStorage.setItem("barberos", JSON.stringify(actualizados))
   }
 
   const cambiarEstado = (i, estado) => {
     const nuevos = [...turnos]
     nuevos[i].estado = estado
-    guardar(nuevos)
-  }
 
-  const eliminar = (i) => {
-    const nuevos = turnos.filter((_, index) => index !== i)
-    guardar(nuevos)
+    // SI SE MARCA COMO EN CURSO → COBRA
+    if (estado === "EN CURSO") {
+      cobrarServicio(nuevos[i])
+    }
+
+    guardarTurnos(nuevos)
   }
 
   const abrirWhatsApp = (t) => {
@@ -133,52 +177,55 @@ function Agenda() {
     window.open(url, "_blank")
   }
 
-  const colorEstado = (estado) => {
-    if (estado === "CONFIRMADO") return "#D4AF37"
-    if (estado === "EN CURSO") return "#3b82f6"
-    return "#555"
-  }
+  const barberos = JSON.parse(localStorage.getItem("barberos")) || []
 
   return (
     <div>
 
       <h2>Agenda</h2>
 
+      {/* FORM */}
       <div style={{ marginBottom: 20 }}>
         <input placeholder="Nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} />
-        <input placeholder="Hora" value={hora} onChange={(e) => setHora(e.target.value)} style={{ marginLeft: 10 }} />
+        <input placeholder="Hora" value={hora} onChange={(e) => setHora(e.target.value)} />
 
-        <select value={servicio} onChange={(e) => setServicio(e.target.value)} style={{ marginLeft: 10 }}>
+        <select value={servicio} onChange={(e) => setServicio(e.target.value)}>
           <option>Corte</option>
           <option>Barba</option>
         </select>
 
-        <button onClick={agregarTurno} style={{ marginLeft: 10 }}>
-          Agregar
-        </button>
+        <select value={barbero} onChange={(e) => setBarbero(e.target.value)}>
+          <option value="">Barbero</option>
+          {barberos.map((b, i) => (
+            <option key={i}>{b.nombre}</option>
+          ))}
+        </select>
+
+        <button onClick={agregarTurno}>Agregar</button>
       </div>
 
-      {turnos.length === 0 && <p style={{ color: "#777" }}>No hay turnos</p>}
-
+      {/* LISTA */}
       {turnos.map((t, i) => (
-        <div key={i} style={{ background: "#111", padding: 12, borderRadius: 10, marginBottom: 10 }}>
-          <strong>{t.nombre}</strong> - {t.hora} - {t.servicio}
-
-          <div style={{
-            marginTop: 5,
-            background: colorEstado(t.estado),
-            padding: "3px 8px",
-            borderRadius: 5,
-            display: "inline-block"
-          }}>
-            {t.estado}
-          </div>
+        <div key={i} style={{
+          background: "#111",
+          padding: 12,
+          borderRadius: 10,
+          marginBottom: 10
+        }}>
+          <strong>{t.nombre}</strong> - {t.hora} - {t.servicio} - {t.barbero}
 
           <div style={{ marginTop: 10 }}>
-            <button onClick={() => cambiarEstado(i, "CONFIRMADO")}>Confirmar</button>
-            <button onClick={() => cambiarEstado(i, "EN CURSO")} style={{ marginLeft: 5 }}>En curso</button>
-            <button onClick={() => abrirWhatsApp(t)} style={{ marginLeft: 5 }}>Notificar</button>
-            <button onClick={() => eliminar(i)} style={{ marginLeft: 5 }}>Eliminar</button>
+            <button onClick={() => cambiarEstado(i, "CONFIRMADO")}>
+              Confirmar
+            </button>
+
+            <button onClick={() => cambiarEstado(i, "EN CURSO")} style={{ marginLeft: 5 }}>
+              En curso (cobra)
+            </button>
+
+            <button onClick={() => abrirWhatsApp(t)} style={{ marginLeft: 5 }}>
+              WhatsApp
+            </button>
           </div>
         </div>
       ))}
