@@ -2,7 +2,6 @@ import { useState, useEffect } from "react"
 import { supabase } from "./lib/supabase"
 import Login from "./auth/Login"
 
-// THEME & CONSTANTS
 const theme = { bg: "#0A0A0A", card: "#121212", gold: "#D4AF37", text: "#FFFFFF", border: "#1F1F1F", muted: "#8E8E93", blue: "#007AFF", success: "#4cd964" };
 
 const Icons = {
@@ -16,18 +15,15 @@ const Icons = {
 
 export default function App() {
   const [session, setSession] = useState(null);
-  const [userShopId, setUserShopId] = useState(null);
   const [tab, setTab] = useState("agenda");
   const [loading, setLoading] = useState(true);
   
-  // PERSISTENCIA LOCAL (Igual que Replit)
   const [turnos, setTurnos] = useState(() => JSON.parse(localStorage.getItem('bc_turnos')) || []);
   const [movimientos, setMovimientos] = useState(() => JSON.parse(localStorage.getItem('bc_movs')) || []);
   const [config, setConfig] = useState(() => JSON.parse(localStorage.getItem('bc_config')) || {
     name: "NABI STYLE", whatsapp: "5491100000000", comision: 50, services: ["Corte", "Barba", "Combo"]
   });
 
-  // MODALES
   const [showConfig, setShowConfig] = useState(false);
   const [showAddTurno, setShowAddTurno] = useState(false);
 
@@ -40,18 +36,15 @@ export default function App() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
-      if (!data.session) setLoading(false);
+      setLoading(false);
     });
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => setSession(session));
     return () => { listener.subscription.unsubscribe() };
   }, []);
 
-  if (loading && !session) return <div style={loadingStyle}>BARBERCONTROL OS...</div>
+  if (loading) return <div style={loadingStyle}>BARBERCONTROL OS...</div>
   if (!session) return <Login />
 
-  // FUNCIONES PRO
   const notifyWhatsApp = (turno) => {
     const msg = `Hola! 💈 Confirmamos tu turno para hoy a las ${turno.time}. ¡Te esperamos! ✨`;
     window.open(`https://wa.me/${config.whatsapp}?text=${encodeURIComponent(msg)}`);
@@ -67,18 +60,16 @@ export default function App() {
   };
 
   return (
-    <div style={{ background: theme.bg, color: theme.text, minHeight: "100vh", fontFamily: "'Inter', sans-serif", overflow: "hidden" }}>
-      {/* HEADER PROFESIONAL */}
+    <div style={{ background: theme.bg, color: theme.text, minHeight: "100vh", fontFamily: "'Inter', sans-serif", position: "relative" }}>
       <header style={headerStyle}>
-        <div style={{animation: "fadeIn 0.5s ease"}}>
-          <h1 style={{ color: theme.gold, margin: 0, fontSize: "18px", fontWeight: "900", letterSpacing: "1px" }}>{config.name}</h1>
-          <small style={{ color: theme.muted, fontSize: "10px", fontWeight: "700" }}>{tab.toUpperCase()}</small>
+        <div>
+          <h1 style={{ color: theme.gold, margin: 0, fontSize: "18px", fontWeight: "900" }}>{config.name}</h1>
+          <small style={{ color: theme.muted, fontSize: "10px" }}>{tab.toUpperCase()}</small>
         </div>
         <button onClick={() => setShowConfig(true)} style={avatarStyle}>M</button>
       </header>
 
-      {/* VISTAS CON ANIMACIÓN */}
-      <main style={{ padding: "20px", paddingBottom: "120px", height: "calc(100vh - 80px)", overflowY: "auto" }}>
+      <main style={{ padding: "20px", paddingBottom: "120px" }}>
         {tab === "agenda" && <AgendaSection turnos={turnos} setTurnos={setTurnos} onNotify={notifyWhatsApp} />}
         {tab === "barberos" && <StaffSection movs={movimientos} comision={config.comision} />}
         {tab === "caja" && <CajaSection movs={movimientos} setMovs={setMovimientos} onRespaldo={descargarRespaldo} />}
@@ -86,68 +77,61 @@ export default function App() {
 
       <button onClick={() => setShowAddTurno(true)} style={fabStyle}><Icons.Plus /></button>
 
-      {/* NAV BAR NATIVA */}
       <nav style={navStyle}>
         <TabButton icon={<Icons.Calendar />} label="Agenda" active={tab === "agenda"} onClick={() => setTab("agenda")} />
         <TabButton icon={<Icons.Users />} label="Equipo" active={tab === "barberos"} onClick={() => setTab("barberos")} />
         <TabButton icon={<Icons.Cash />} label="Caja" active={tab === "caja"} onClick={() => setTab("caja")} />
       </nav>
 
-      {/* MODALES PRO */}
       {showConfig && (
         <Modal title="CONFIGURACIÓN" onClose={() => setShowConfig(false)}>
-          <div style={{display: "flex", flexDirection: "column", gap: "12px"}}>
+          <div style={{display: "flex", flexDirection: "column", gap: "15px"}}>
             <label style={labelStyle}>NOMBRE BARBERÍA</label>
             <input style={inputStyle} value={config.name} onChange={e => setConfig({...config, name: e.target.value.toUpperCase()})} />
-            <button onClick={descargarRespaldo} style={{...btnStyle, background: theme.card, border: `1px solid ${theme.border}`}}>📥 DESCARGAR BACKUP</button>
-            <button onClick={() => supabase.auth.signOut()} style={{...btnStyle, background: "#ff4444", marginTop: "20px"}}>CERRAR SESIÓN</button>
+            <button onClick={descargarRespaldo} style={{...btnStyle, background: theme.card, border: `1px solid ${theme.border}`, color: "#fff"}}>📥 RESPALDO JSON</button>
+            <button onClick={() => supabase.auth.signOut()} style={{...btnStyle, background: "#ff4444", marginTop: "20px", color: "#fff"}}>CERRAR SESIÓN</button>
           </div>
         </Modal>
       )}
 
       {showAddTurno && (
         <Modal title="NUEVO TURNO" onClose={() => setShowAddTurno(false)}>
-           {/* Aquí va tu formulario de carga de Replit */}
-           <button onClick={() => setShowAddTurno(false)} style={btnStyle}>GUARDAR TURNO</button>
+          <div style={{display: "flex", flexDirection: "column", gap: "12px"}}>
+            <input style={inputStyle} placeholder="Nombre Cliente" id="newClient" />
+            <input style={inputStyle} type="time" id="newTime" />
+            <button onClick={() => {
+              const client = document.getElementById('newClient').value;
+              const time = document.getElementById('newTime').value;
+              if(client && time) {
+                setTurnos([...turnos, { id: Date.now(), client, time, service: "Corte", status: "ESPERANDO" }]);
+                setShowAddTurno(false);
+              }
+            }} style={btnStyle}>CONFIRMAR TURNO</button>
+          </div>
         </Modal>
       )}
     </div>
   )
 }
 
-/* ================= SECCIONES (LOGICA REPLIT) ================= */
-
 function AgendaSection({ turnos, setTurnos, onNotify }) {
   const toggleEstado = (id) => {
     const estados = ["ESPERANDO", "CONFIRMADO", "EN CURSO"];
-    setTurnos(turnos.map(t => {
-      if (t.id === id) {
-        const nextIdx = (estados.indexOf(t.status) + 1) % estados.length;
-        return { ...t, status: estados[nextIdx] };
-      }
-      return t;
-    }));
+    setTurnos(turnos.map(t => t.id === id ? { ...t, status: estados[(estados.indexOf(t.status) + 1) % estados.length] } : t));
   };
-
   return (
-    <div style={{animation: "slideUp 0.4s ease"}}>
-      <h3 style={{fontSize: "12px", color: theme.muted, marginBottom: "15px"}}>PRÓXIMOS TURNOS</h3>
-      {turnos.length === 0 ? <p style={{color: theme.muted, textAlign: "center", marginTop: "40px"}}>No hay turnos agendados.</p> : 
-        turnos.map(t => (
-          <div key={t.id} style={cardStyle}>
-            <div style={{display: "flex", justifyContent: "space-between", alignItems: "center"}}>
-              <div onClick={() => toggleEstado(t.id)} style={{cursor: "pointer"}}>
-                <span style={{...statusBadge, background: t.status === "CONFIRMADO" ? theme.gold : t.status === "EN CURSO" ? theme.blue : theme.border}}>
-                  {t.status}
-                </span>
-                <div style={{fontWeight: "900", fontSize: "16px", marginTop: "8px"}}>{t.time} - {t.client}</div>
-                <div style={{color: theme.muted, fontSize: "12px"}}>{t.service}</div>
-              </div>
-              <button onClick={() => onNotify(t)} style={waButtonStyle}><Icons.WhatsApp /></button>
+    <div>
+      {turnos.map(t => (
+        <div key={t.id} style={cardStyle}>
+          <div style={{display: "flex", justifyContent: "space-between", alignItems: "center"}}>
+            <div onClick={() => toggleEstado(t.id)} style={{cursor: "pointer"}}>
+              <span style={{...statusBadge, background: t.status === "CONFIRMADO" ? theme.gold : t.status === "EN CURSO" ? theme.blue : theme.border}}>{t.status}</span>
+              <div style={{fontWeight: "900", fontSize: "16px", marginTop: "8px"}}>{t.time} - {t.client}</div>
             </div>
+            <button onClick={() => onNotify(t)} style={waButtonStyle}><Icons.WhatsApp /></button>
           </div>
-        ))
-      }
+        </div>
+      ))}
     </div>
   );
 }
@@ -158,16 +142,13 @@ function StaffSection({ movs, comision }) {
     acc.barbero += (m.price * comision) / 100;
     return acc;
   }, { total: 0, barbero: 0 });
-
   return (
-    <div style={{animation: "slideUp 0.4s ease"}}>
-      <div style={cardStyle}>
-        <h2 style={{color: theme.gold, fontSize: "14px", marginBottom: "20px"}}>EQUIPO Y COMISIONES ({comision}%)</h2>
-        <div style={rowBetween}><span>Ingreso Bruto:</span> <span>${stats.total}</span></div>
-        <div style={rowBetween}><span>Para el Barbero:</span> <span style={{color: theme.success}}>${stats.barbero}</span></div>
-        <div style={{...rowBetween, marginTop: "10px", borderTop: `1px solid ${theme.border}`, paddingTop: "10px", fontWeight: "900"}}>
-          <span>Ganancia Local:</span> <span style={{color: theme.gold}}>${stats.total - stats.barbero}</span>
-        </div>
+    <div style={cardStyle}>
+      <h2 style={{color: theme.gold, fontSize: "14px", marginBottom: "20px"}}>COMISIONES ({comision}%)</h2>
+      <div style={rowBetween}><span>Bruto:</span> <span>${stats.total}</span></div>
+      <div style={rowBetween}><span>Barbero:</span> <span style={{color: theme.success}}>${stats.barbero}</span></div>
+      <div style={{...rowBetween, marginTop: "10px", borderTop: `1px solid ${theme.border}`, paddingTop: "10px", fontWeight: "900"}}>
+        <span>Local:</span> <span style={{color: theme.gold}}>${stats.total - stats.barbero}</span>
       </div>
     </div>
   );
@@ -175,12 +156,51 @@ function StaffSection({ movs, comision }) {
 
 function CajaSection({ movs, setMovs, onRespaldo }) {
   const total = movs.reduce((sum, m) => sum + m.price, 0);
-  
   return (
-    <div style={{animation: "slideUp 0.4s ease"}}>
+    <div>
       <div style={{...cardStyle, background: theme.gold, color: "#000", textAlign: "center", padding: "30px"}}>
-        <small style={{fontWeight: "700"}}>TOTAL RECAUDADO HOY</small>
+        <small style={{fontWeight: "700"}}>TOTAL DEL DÍA</small>
         <div style={{fontSize: "42px", fontWeight: "900"}}>${total}</div>
       </div>
-      
-      <button style={{...btnStyle, margin: "20px
+      <button onClick={() => setMovs([...movs, { service: "Corte", price: 5000, time: new Date().toLocaleTimeString() }])} style={{...btnStyle, margin: "20px 0"}}>⚡ COBRAR CORTE ($5000)</button>
+      <button onClick={() => { if(confirm("¿Cerrar caja?")) { onRespaldo(); setMovs([]); } }} style={{...btnStyle, background: "transparent", border: `1px solid #ff4444`, color: "#ff4444"}}>CERRAR CAJA</button>
+    </div>
+  );
+}
+
+function TabButton({ icon, label, active, onClick }) {
+  return (
+    <button onClick={onClick} style={{ background: "none", border: "none", color: active ? theme.gold : theme.muted, display: "flex", flexDirection: "column", alignItems: "center", gap: "6px", flex: 1 }}>
+      {icon} <span style={{ fontSize: "10px", fontWeight: active ? "900" : "500" }}>{label.toUpperCase()}</span>
+    </button>
+  );
+}
+
+function Modal({ title, children, onClose }) {
+  return (
+    <div style={overlay}>
+      <div style={modalBox}>
+        <div style={{display: "flex", justifyContent: "space-between", marginBottom: "20px"}}>
+          <h2 style={{fontSize: "14px", color: theme.gold}}>{title}</h2>
+          <button onClick={onClose} style={{background: "none", border: "none", color: "#fff", fontSize: "20px"}}>×</button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+const headerStyle = { padding: "20px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, background: "#0A0A0A", zIndex: 10 };
+const avatarStyle = { width: "35px", height: "35px", borderRadius: "50%", background: theme.gold, color: "#000", border: "none", fontWeight: "900" };
+const navStyle = { position: "fixed", bottom: 0, left: 0, right: 0, height: "85px", background: "#0D0D0D", display: "flex", borderTop: `1px solid ${theme.border}`, paddingBottom: "10px" };
+const cardStyle = { background: theme.card, padding: "18px", borderRadius: "16px", marginBottom: "12px", border: `1px solid ${theme.border}` };
+const fabStyle = { position: "fixed", bottom: "105px", right: "20px", width: "60px", height: "60px", borderRadius: "30px", background: theme.gold, color: "#000", border: "none", display: "flex", justifyContent: "center", alignItems: "center", boxShadow: `0 8px 25px ${theme.gold}44` };
+const btnStyle = { width: "100%", padding: "15px", borderRadius: "12px", border: "none", fontWeight: "900", background: theme.gold, color: "#000" };
+const inputStyle = { background: "#1A1A1A", border: `1px solid ${theme.border}`, padding: "12px", borderRadius: "8px", color: "#fff" };
+const labelStyle = { fontSize: "10px", color: theme.muted, fontWeight: "700" };
+const statusBadge = { padding: "4px 10px", borderRadius: "20px", fontSize: "9px", fontWeight: "900", color: "#000" };
+const waButtonStyle = { background: "#25D366", border: "none", borderRadius: "50%", width: "35px", height: "35px", color: "#fff", display: "flex", justifyContent: "center", alignItems: "center" };
+const overlay = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", justifyContent: "center", alignItems: "flex-end", zIndex: 1000 };
+const modalBox = { background: theme.card, width: "100%", padding: "30px", borderTopLeftRadius: "25px", borderTopRightRadius: "25px", borderTop: `2px solid ${theme.gold}` };
+const rowBetween = { display: "flex", justifyContent: "space-between", padding: "8px 0" };
+const loadingStyle = { background: "#000", color: theme.gold, height: "100vh", display: "flex", justifyContent: "center", alignItems: "center", fontWeight: "900" };
