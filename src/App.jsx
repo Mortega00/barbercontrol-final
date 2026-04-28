@@ -90,19 +90,42 @@ export default function App() {
   )
 }
 
-/* ================= VISTA DE AGENDA (EL CORAZÓN) ================= */
+/* ================= VISTA DE AGENDA (DINÁMICA) ================= */
 function AgendaView({ shopId }) {
-  const days = ["LUN", "MAR", "MIE", "JUE", "VIE", "SAB"];
+  // Genera los próximos 6 días empezando desde HOY
+  const getNextDays = () => {
+    const days = [];
+    const now = new Date();
+    for (let i = 0; i < 6; i++) {
+      const date = new Date();
+      date.setDate(now.getDate() + i);
+      days.push({
+        name: date.toLocaleDateString('es-AR', { weekday: 'short' }).toUpperCase().replace('.', ''),
+        num: date.getDate(),
+        isToday: i === 0
+      });
+    }
+    return days;
+  };
+
+  const weekDays = getNextDays();
+
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "20px", overflowX: "auto", gap: "10px", paddingBottom: "10px" }}>
-        {days.map(d => (
-          <div key={d} style={d === "MAR" ? activeDayStyle : dayStyle}>{d}<br/><span style={{fontSize: '12px'}}>28</span></div>
+        {weekDays.map((d, index) => (
+          <div key={index} style={d.isToday ? activeDayStyle : dayStyle}>
+            {d.name}
+            <br/>
+            <span style={{fontSize: '12px'}}>{d.num}</span>
+          </div>
         ))}
       </div>
       
       <div style={cardStyle}>
-        <h3 style={{ color: theme.gold, margin: "0 0 15px 0", fontSize: "14px" }}>PRÓXIMOS TURNOS</h3>
+        <h3 style={{ color: theme.gold, margin: "0 0 15px 0", fontSize: "14px" }}>
+          {weekDays[0].isToday ? "TURNOS DE HOY" : "PRÓXIMOS TURNOS"}
+        </h3>
         <div style={turnoStyle}>
           <div><strong>16:30</strong> - Corte + Barba</div>
           <div style={{ color: theme.muted, fontSize: "12px" }}>Cliente: Juan Perez</div>
