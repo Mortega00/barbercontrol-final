@@ -12,7 +12,7 @@ const Icons = {
   Plus: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>
 };
 
-/* ================= HELPERS (CONEXIÓN) ================= */
+/* ================= LÓGICA DE DATOS ================= */
 const getMyBarbershop = async (user) => {
   const { data } = await supabase.from("profiles").select("barbershop_id").eq("id", user.id).maybeSingle();
   return data?.barbershop_id || null;
@@ -25,12 +25,13 @@ const createBarbershopForUser = async (user) => {
   return shop.id;
 }
 
-/* ================= COMPONENTE PRINCIPAL ================= */
 export default function App() {
   const [session, setSession] = useState(null)
   const [userShopId, setUserShopId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState("agenda")
+  const [showConfig, setShowConfig] = useState(false)
+  const [showAddTurno, setShowAddTurno] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -45,18 +46,17 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const fetchUserShop = async () => {
-      if (session?.user) {
-        setLoading(true);
+    if (session?.user) {
+      const fetchShop = async () => {
         const id = await getMyBarbershop(session.user);
         setUserShopId(id || await createBarbershopForUser(session.user));
         setLoading(false);
       }
+      fetchShop();
     }
-    fetchUserShop();
   }, [session]);
 
-  if (loading) return <div style={loadingStyle}>BARBERCONTROL PRO...</div>
+  if (loading) return <div style={loadingStyle}>CONECTANDO SISTEMA...</div>
   if (!session) return <Login />
 
   return (
@@ -67,18 +67,18 @@ export default function App() {
           <h1 style={{ color: theme.gold, margin: 0, fontSize: "18px", fontWeight: "900" }}>BARBERCONTROL</h1>
           <small style={{ color: theme.muted, fontSize: "10px" }}>{tab.toUpperCase()}</small>
         </div>
-        <button style={{ background: "none", border: "none", color: theme.gold }}><Icons.Config /></button>
+        <button onClick={() => setShowConfig(true)} style={iconButtonStyle}><Icons.Config /></button>
       </header>
 
-      {/* CONTENIDO DINÁMICO */}
+      {/* VISTAS */}
       <main style={{ padding: "20px", paddingBottom: "100px" }}>
         {tab === "agenda" && <AgendaView shopId={userShopId} />}
-        {tab === "barberos" && <div style={cardStyle}>Sección Barberos (Próximamente)</div>}
-        {tab === "caja" && <div style={cardStyle}>Sección Caja (Próximamente)</div>}
+        {tab === "barberos" && <BarberosView shopId={userShopId} />}
+        {tab === "caja" && <CajaView shopId={userShopId} />}
       </main>
 
-      {/* BOTÓN FLOTANTE (+) */}
-      <button style={fabStyle}><Icons.Plus /></button>
+      {/* BOTÓN FLOTANTE */}
+      <button onClick={() => setShowAddTurno(true)} style={fabStyle}><Icons.Plus /></button>
 
       {/* NAVEGACIÓN */}
       <nav style={navStyle}>
@@ -86,54 +86,101 @@ export default function App() {
         <TabButton icon={<Icons.Users />} label="Equipo" active={tab === "barberos"} onClick={() => setTab("barberos")} />
         <TabButton icon={<Icons.Cash />} label="Caja" active={tab === "caja"} onClick={() => setTab("caja")} />
       </nav>
+
+      {/* MODALES */}
+      {showConfig && <Modal title="CONFIGURACIÓN" onClose={() => setShowConfig(false)}>
+        <button onClick={() => supabase.auth.signOut()} style={{...btnStyle, background: "#ff4444"}}>CERRAR SESIÓN</button>
+      </Modal>}
+      
+      {showAddTurno && <Modal title="NUEVO TURNO" onClose={() => setShowAddTurno(false)}>
+        <p style={{color: theme.muted}}>Formulario de reserva para Shop: {userShopId?.split('-')[0]}</p>
+        <button style={btnStyle}>CONFIRMAR TURNO</button>
+      </Modal>}
     </div>
   )
 }
 
-/* ================= VISTA DE AGENDA (DINÁMICA) ================= */
-function AgendaView({ shopId }) {
-  // Genera los próximos 6 días empezando desde HOY
-  const getNextDays = () => {
-    const days = [];
-    const now = new Date();
-    for (let i = 0; i < 6; i++) {
-      const date = new Date();
-      date.setDate(now.getDate() + i);
-      days.push({
-        name: date.toLocaleDateString('es-AR', { weekday: 'short' }).toUpperCase().replace('.', ''),
-        num: date.getDate(),
-        isToday: i === 0
-      });
-    }
-    return days;
-  };
+/* ================= COMPONENTES DE VISTA ================= */
 
-  const weekDays = getNextDays();
+function AgendaView({ shopId }) {
+  const getNextDays = () => {
+    return Array.from({length: 6}, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() + i);
+      return {
+        name: d.toLocaleDateString('es-AR', { weekday: 'short' }).toUpperCase().replace('.', ''),
+        num: d.getDate(),
+        isToday: i === 0
+      };
+    });
+  };
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "20px", overflowX: "auto", gap: "10px", paddingBottom: "10px" }}>
-        {weekDays.map((d, index) => (
-          <div key={index} style={d.isToday ? activeDayStyle : dayStyle}>
-            {d.name}
-            <br/>
-            <span style={{fontSize: '12px'}}>{d.num}</span>
+      <div style={{ display: "flex", gap: "10px", marginBottom: "25px", overflowX: "auto", paddingBottom: "10px" }}>
+        {getNextDays().map((d, i) => (
+          <div key={i} style={d.isToday ? activeDayStyle : dayStyle}>
+            <span style={{fontSize: "10px"}}>{d.name}</span>
+            <span style={{fontSize: "16px", fontWeight: "900"}}>{d.num}</span>
           </div>
         ))}
       </div>
-      
       <div style={cardStyle}>
-        <h3 style={{ color: theme.gold, margin: "0 0 15px 0", fontSize: "14px" }}>
-          {weekDays[0].isToday ? "TURNOS DE HOY" : "PRÓXIMOS TURNOS"}
-        </h3>
-        <div style={turnoStyle}>
-          <div><strong>16:30</strong> - Corte + Barba</div>
-          <div style={{ color: theme.muted, fontSize: "12px" }}>Cliente: Juan Perez</div>
+        <h3 style={{ color: theme.gold, margin: "0 0 15px 0", fontSize: "14px" }}>TURNOS DE HOY</h3>
+        <Turno time="10:00" client="Rosario Michienzi" service="Corte Nabi Style" />
+        <Turno time="11:30" client="Maxi Ortega" service="Barba + Perfilado" />
+      </div>
+    </div>
+  );
+}
+
+function BarberosView() {
+  return (
+    <div style={cardStyle}>
+      <h3 style={{ color: theme.gold, marginBottom: "15px" }}>MI EQUIPO</h3>
+      <div style={turnoStyle}>Barbero Principal (Admin)</div>
+      <button style={{...btnStyle, marginTop: "15px"}}>+ AGREGAR BARBERO</button>
+    </div>
+  );
+}
+
+function CajaView() {
+  return (
+    <div style={cardStyle}>
+      <h3 style={{ color: theme.gold, marginBottom: "20px" }}>BALANCE DEL DÍA</h3>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "20px", fontWeight: "900" }}>
+        <span>TOTAL:</span>
+        <span style={{color: "#4cd964"}}>$45.500</span>
+      </div>
+      <hr style={{borderColor: theme.border, margin: "15px 0"}}/>
+      <small style={{color: theme.muted}}>3 servicios realizados hoy</small>
+    </div>
+  );
+}
+
+/* ================= UI COMPONENTS ================= */
+
+function Turno({ time, client, service }) {
+  return (
+    <div style={turnoStyle}>
+      <div style={{color: theme.gold, fontWeight: "900"}}>{time}</div>
+      <div>
+        <div style={{fontSize: "14px"}}>{client}</div>
+        <div style={{fontSize: "11px", color: theme.muted}}>{service}</div>
+      </div>
+    </div>
+  );
+}
+
+function Modal({ title, children, onClose }) {
+  return (
+    <div style={modalOverlay}>
+      <div style={modalContent}>
+        <div style={{display: "flex", justifyContent: "space-between", marginBottom: "20px"}}>
+          <h2 style={{fontSize: "16px", color: theme.gold}}>{title}</h2>
+          <button onClick={onClose} style={{background: "none", border: "none", color: "#fff"}}>X</button>
         </div>
-        <div style={turnoStyle}>
-          <div><strong>17:15</strong> - Corte Clásico</div>
-          <div style={{ color: theme.muted, fontSize: "12px" }}>Cliente: Maxi Ortega</div>
-        </div>
+        {children}
       </div>
     </div>
   );
@@ -141,18 +188,22 @@ function AgendaView({ shopId }) {
 
 function TabButton({ icon, label, active, onClick }) {
   return (
-    <button onClick={onClick} style={{ background: "none", border: "none", color: active ? theme.gold : theme.muted, display: "flex", flexDirection: "column", alignItems: "center", gap: "5px", cursor: "pointer", fontWeight: active ? "900" : "400" }}>
-      {icon} <span style={{ fontSize: "10px" }}>{label.toUpperCase()}</span>
+    <button onClick={onClick} style={{ background: "none", border: "none", color: active ? theme.gold : theme.muted, display: "flex", flexDirection: "column", alignItems: "center", gap: "5px", transition: "0.3s" }}>
+      {icon} <span style={{ fontSize: "9px", fontWeight: active ? "900" : "400" }}>{label}</span>
     </button>
   );
 }
 
-/* ================= ESTILOS NABI STYLE ================= */
-const headerStyle = { padding: "20px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `1px solid ${theme.border}`, background: "#000" };
-const navStyle = { position: "fixed", bottom: 0, left: 0, right: 0, height: "80px", background: "#0A0A0A", display: "flex", justifyContent: "space-around", alignItems: "center", borderTop: `1px solid ${theme.border}`, paddingBottom: "10px" };
+/* ================= ESTILOS ================= */
+const headerStyle = { padding: "20px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `1px solid ${theme.border}`, position: "sticky", top: 0, background: "#000", zIndex: 10 };
+const navStyle = { position: "fixed", bottom: 0, left: 0, right: 0, height: "80px", background: "#0A0A0A", display: "flex", justifyContent: "space-around", alignItems: "center", borderTop: `1px solid ${theme.border}`, zIndex: 10 };
 const cardStyle = { background: theme.card, padding: "20px", borderRadius: "12px", border: `1px solid ${theme.border}` };
-const turnoStyle = { padding: "12px 0", borderBottom: `1px solid ${theme.border}` };
-const dayStyle = { minWidth: "50px", height: "60px", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", borderRadius: "8px", background: theme.card, color: theme.muted, fontSize: "10px" };
-const activeDayStyle = { ...dayStyle, background: theme.gold, color: "#000", fontWeight: "900" };
-const fabStyle = { position: "fixed", bottom: "100px", right: "20px", width: "56px", height: "56px", borderRadius: "28px", background: theme.gold, color: "#000", border: "none", display: "flex", justifyContent: "center", alignItems: "center", boxShadow: "0 4px 15px rgba(212, 175, 55, 0.3)", cursor: "pointer" };
-const loadingStyle = { background: "#000", color: "#D4AF37", height: "100vh", display: "flex", justifyContent: "center", alignItems: "center", fontWeight: "900", letterSpacing: "2px" };
+const turnoStyle = { padding: "12px 0", borderBottom: `1px solid ${theme.border}`, display: "flex", gap: "15px", alignItems: "center" };
+const btnStyle = { width: "100%", padding: "12px", background: theme.gold, border: "none", borderRadius: "8px", fontWeight: "900", cursor: "pointer" };
+const fabStyle = { position: "fixed", bottom: "100px", right: "20px", width: "56px", height: "56px", borderRadius: "28px", background: theme.gold, color: "#000", border: "none", display: "flex", justifyContent: "center", alignItems: "center", boxShadow: `0 4px 15px ${theme.gold}44`, zIndex: 9 };
+const dayStyle = { minWidth: "55px", height: "65px", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", borderRadius: "10px", background: theme.card, color: theme.muted, border: `1px solid ${theme.border}` };
+const activeDayStyle = { ...dayStyle, background: theme.gold, color: "#000", borderColor: theme.gold };
+const modalOverlay = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 100, padding: "20px" };
+const modalContent = { background: theme.card, padding: "25px", borderRadius: "15px", width: "100%", maxWidth: "400px", border: `1px solid ${theme.border}` };
+const iconButtonStyle = { background: "none", border: "none", color: theme.gold, cursor: "pointer" };
+const loadingStyle = { background: "#000", color: theme.gold, height: "100vh", display: "flex", justifyContent: "center", alignItems: "center", fontWeight: "900", letterSpacing: "2px" };
