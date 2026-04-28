@@ -159,7 +159,7 @@ function Caja({ sync }) {
   )
 }
 
-/* ================= CONFIGURACIÓN PRO ================= */
+/* ================= CONFIGURACIÓN ================= */
 function ConfigDrawer({ isOpen, close, onUpdate }) {
   const fileRef = useRef(null)
   const [conf, setConf] = useState({
@@ -179,7 +179,7 @@ function ConfigDrawer({ isOpen, close, onUpdate }) {
     <>
       <div onClick={close} style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.8)", opacity: isOpen ? 1 : 0, pointerEvents: isOpen ? "auto" : "none", transition: "0.3s", zIndex: 90 }} />
       <div style={{ position: "fixed", top: 0, right: isOpen ? 0 : "-100%", width: "90%", maxWidth: "400px", height: "100%", background: "#111", zIndex: 100, transition: "0.4s", padding: "25px", borderLeft: `1px solid ${theme.border}`, overflowY: "auto" }}>
-        <h2 style={{ color: theme.gold, fontSize: "16px", marginBottom: 20 }}>CONFIGURACIÓN PRO</h2>
+        <h2 style={{ color: theme.gold, fontSize: "16px", marginBottom: 20 }}>CONFIGURACIÓN</h2>
         
         <label style={labelStyle}>NOMBRE DEL LOCAL</label>
         <input style={inputStyle} value={conf.nombreLocal} onChange={e => setConf({...conf, nombreLocal: e.target.value})} />
