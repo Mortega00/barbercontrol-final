@@ -10,7 +10,6 @@ const Icons = {
   Users: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
   Cash: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
   Plus: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>,
-  WhatsApp: () => <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.06 3.973l-1.127 4.117 4.212-1.105a7.959 7.959 0 0 0 3.785.955h.003c4.369 0 7.927-3.558 7.929-7.926 0-2.12-.823-4.111-2.325-5.611zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.002 3.626-2.96 6.584-6.591 6.584z"/></svg>,
   Copy: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
 };
 
@@ -19,7 +18,7 @@ export default function App() {
   const [tab, setTab] = useState("agenda");
   const [loading, setLoading] = useState(true);
   
-  // Persistence Logic
+  // Persistencia
   const [turnos, setTurnos] = useState(() => JSON.parse(localStorage.getItem('bc_turnos')) || []);
   const [movimientos, setMovimientos] = useState(() => JSON.parse(localStorage.getItem('bc_movs')) || []);
   const [barberos, setBarberos] = useState(() => JSON.parse(localStorage.getItem('bc_barberos')) || [{ id: 1, name: "Maxi", comision: 50 }]);
@@ -46,6 +45,7 @@ export default function App() {
   if (loading) return <div style={loadingStyle}>BARBERCONTROL OS...</div>
   if (!session) return <Login />
 
+  // Handlers
   const handleAddTurno = (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
@@ -62,21 +62,32 @@ export default function App() {
   };
 
   const handleCobrar = (turno) => {
-    const serviceObj = servicios.find(s => s.name === turno.service) || { price: 5000 };
+    const serviceObj = servicios.find(s => s.name === turno.service) || { price: 0 };
     const newMov = {
       id: Date.now(),
-      turnoId: turno.id,
       barberoId: turno.barberoId,
       price: serviceObj.price,
       service: turno.service,
-      date: new Date().toLocaleDateString()
+      time: new Date().toLocaleTimeString()
     };
     setMovimientos([...movimientos, newMov]);
     setTurnos(turnos.filter(t => t.id !== turno.id));
   };
 
+  const addBarbero = () => {
+    const name = prompt("Nombre del barbero:");
+    const comision = prompt("% de comisión:");
+    if(name && comision) setBarberos([...barberos, { id: Date.now(), name, comision: parseInt(comision) }]);
+  };
+
+  const addServicio = () => {
+    const name = prompt("Nombre del servicio:");
+    const price = prompt("Precio:");
+    if(name && price) setServicios([...servicios, { name, price: parseInt(price) }]);
+  };
+
   return (
-    <div style={{ background: theme.bg, color: theme.text, minHeight: "100vh", position: "relative" }}>
+    <div style={{ background: theme.bg, color: theme.text, minHeight: "100vh", position: "relative", fontFamily: "'Inter', sans-serif" }}>
       <header style={headerStyle}>
         <div>
           <h1 style={{ color: theme.gold, margin: 0, fontSize: "20px", fontWeight: "900" }}>{config.name}</h1>
@@ -87,7 +98,7 @@ export default function App() {
 
       <main style={{ padding: "20px", paddingBottom: "120px" }}>
         {tab === "agenda" && <AgendaSection turnos={turnos} handleCobrar={handleCobrar} />}
-        {tab === "barberos" && <StaffSection movs={movimientos} barberos={barberos} />}
+        {tab === "barberos" && <StaffSection movs={movimientos} barberos={barberos} addBarbero={addBarbero} />}
         {tab === "caja" && <CajaSection movs={movimientos} setMovs={setMovimientos} />}
       </main>
 
@@ -113,17 +124,22 @@ export default function App() {
                 <input style={{...inputStyle, flex: 1}} value={`$${s.price}`} readOnly />
               </div>
             ))}
+            <button onClick={addServicio} style={{...btnStyle, background: theme.card, border: `1px solid ${theme.gold}`, color: theme.gold, marginBottom: "20px"}}>+ AGREGAR SERVICIO</button>
             
-            <SectionTitle>ACCIONES</SectionTitle>
+            <SectionTitle>MENSAJE CLIENTES NUEVOS</SectionTitle>
+            <div style={copyBox}>
+               <p style={{fontSize: "12px", color: theme.muted, margin: 0}}>Hola BarberControl 💈, quiero agendar un turno...</p>
+               <button onClick={() => navigator.clipboard.writeText("Hola BarberControl 💈, quiero agendar un turno para hoy...")} style={{background: "none", border: "none", color: theme.gold}}><Icons.Copy /></button>
+            </div>
+
             <button onClick={() => {
               const data = { turnos, movimientos, barberos, servicios, config };
               const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
               const url = URL.createObjectURL(blob);
-              const a = document.createElement('a'); a.href = url; a.download = "backup_barbercontrol.json"; a.click();
-            }} style={{...btnStyle, background: theme.card, border: `1px solid ${theme.border}`, color: "#fff", marginBottom: "10px"}}>DESCARGAR COPIA JSON</button>
+              const a = document.createElement('a'); a.href = url; a.download = "backup_barber.json"; a.click();
+            }} style={{...btnStyle, background: theme.card, border: `1px solid ${theme.border}`, color: "#fff", marginTop: "20px"}}>DESCARGAR COPIA JSON</button>
             
-            <button onClick={() => { if(confirm("¿RESET A FÁBRICA? Se borrará todo.")) localStorage.clear(); window.location.reload(); }} style={{...btnStyle, background: theme.danger, color: "#fff"}}>RESETEAR A FÁBRICA</button>
-            <button onClick={() => supabase.auth.signOut()} style={{...btnStyle, background: "transparent", border: "1px solid #fff", color: "#fff", marginTop: "10px"}}>CERRAR SESIÓN</button>
+            <button onClick={() => { if(confirm("¿RESET?")) { localStorage.clear(); window.location.reload(); }}} style={{...btnStyle, background: theme.danger, color: "#fff", marginTop: "10px"}}>RESETEAR A FÁBRICA</button>
           </div>
         </Modal>
       )}
@@ -147,24 +163,17 @@ export default function App() {
   )
 }
 
-// --- SUB-SECCIONES ---
-
 function AgendaSection({ turnos, handleCobrar }) {
-  const stats = {
-    total: turnos.length,
-    enCurso: turnos.filter(t => t.status === "EN CURSO").length,
-    pendientes: turnos.filter(t => t.status === "PENDIENTE").length
-  };
+  const stats = { total: turnos.length, pendientes: turnos.filter(t => t.status === "PENDIENTE").length };
   return (
     <div>
       <div style={{display: "flex", gap: "10px", marginBottom: "25px"}}>
         <StatSmall label="Total" val={stats.total} />
-        <StatSmall label="En curso" val={stats.enCurso} />
         <StatSmall label="Pendientes" val={stats.pendientes} />
       </div>
       <SectionTitle>PRÓXIMOS TURNOS</SectionTitle>
       {turnos.length === 0 ? (
-        <div style={{textAlign: "center", padding: "40px", color: theme.muted}}>No hay turnos para hoy. Agregá el primero!</div>
+        <div style={{textAlign: "center", padding: "40px", color: theme.muted}}>No hay turnos para hoy.</div>
       ) : (
         turnos.map(t => (
           <div key={t.id} style={cardStyle}>
@@ -183,14 +192,28 @@ function AgendaSection({ turnos, handleCobrar }) {
   );
 }
 
-function StaffSection({ movs, barberos }) {
+function StaffSection({ movs, barberos, addBarbero }) {
   const totalBruto = movs.reduce((s, m) => s + m.price, 0);
   return (
+    <div>
       <div style={cardStyle}>
         <SectionTitle>STAFF</SectionTitle>
         <div style={rowBetween}><span>Cortes hoy:</span> <span>{movs.length}</span></div>
         <div style={rowBetween}><span>Ingreso Bruto:</span> <span style={{color: theme.success}}>${totalBruto}</span></div>
       </div>
+      {barberos.map(b => {
+        const bMovs = movs.filter(m => m.barberoId === b.id);
+        const bTotal = bMovs.reduce((s, m) => s + m.price, 0);
+        const bGana = (bTotal * b.comision) / 100;
+        return (
+          <div key={b.id} style={{...cardStyle, borderLeft: `4px solid ${theme.gold}`}}>
+            <div style={rowBetween}><div style={{fontWeight: "900"}}>{b.name}</div><span style={statusBadge}>{b.comision}% comision</span></div>
+            <div style={{...rowBetween, marginTop: "10px"}}><small>Cortes: {bMovs.length}</small><small style={{color: theme.success}}>Gana: ${bGana}</small></div>
+          </div>
+        );
+      })}
+      <button onClick={addBarbero} style={{...btnStyle, background: theme.card, border: `1px solid ${theme.gold}`, color: theme.gold}}>+ NUEVO BARBERO</button>
+    </div>
   );
 }
 
@@ -198,50 +221,41 @@ function CajaSection({ movs, setMovs }) {
   const total = movs.reduce((s, m) => s + m.price, 0);
   return (
     <div>
-      <div style={cardStyle}>
-        <div style={rowBetween}><span style={{fontSize: "18px"}}>TOTAL HOY</span> <span style={{fontSize: "24px", color: theme.gold, fontWeight: "900"}}>${total}</span></div>
+      <div style={{...cardStyle, background: theme.gold, color: "#000", textAlign: "center", padding: "30px"}}>
+        <small style={{fontWeight: "900"}}>TOTAL RECAUDADO HOY</small>
+        <div style={{fontSize: "48px", fontWeight: "900"}}>${total}</div>
       </div>
-      <SectionTitle>MOVIMIENTOS</SectionTitle>
-      {movs.map(m => <div key={m.id} style={cardStyle}><div style={rowBetween}><span>{m.service}</span> <span style={{color: theme.success}}>${m.price}</span></div></div>)}
+      <SectionTitle>MOVIMIENTOS DEL DÍA</SectionTitle>
+      {movs.length === 0 ? <div style={{color: theme.muted, textAlign: "center"}}>Sin cobros registrados</div> : 
+        movs.map(m => (
+          <div key={m.id} style={{...rowBetween, borderBottom: `1px solid ${theme.border}`, padding: "12px 0"}}>
+            <span>{m.service}</span><span style={{fontWeight: "700"}}>${m.price}</span>
+          </div>
+        ))
+      }
+      <button onClick={() => { if(confirm("¿Cerrar caja?")) setMovs([]); }} style={{...btnStyle, marginTop: "30px", background: "transparent", border: `1px solid ${theme.danger}`, color: theme.danger}}>CERRAR CAJA</button>
     </div>
   );
 }
 
-// --- COMPONENTES AUXILIARES ---
-const Modal = ({ title, onClose, children }) => (
-  <div style={{position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", display: "flex", alignItems: "flex-end", zIndex: 50}}>
-    <div style={{background: theme.card, width: "100%", borderRadius: "20px 20px 0 0", padding: "20px"}}>
-      <div style={rowBetween}><h2 style={{color: theme.gold, margin: 0}}>{title}</h2> <button onClick={onClose} style={{background: "none", border: "none", color: theme.muted, fontSize: "24px", cursor: "pointer"}}>✕</button></div>
-      {children}
-    </div>
-  </div>
-);
+// Estilos y componentes menores
+const SectionTitle = ({ children }) => <h3 style={{fontSize: "12px", color: theme.muted, letterSpacing: "1px", marginBottom: "15px", marginTop: "20px"}}>{children.toUpperCase()}</h3>;
+const StatSmall = ({ label, val }) => (<div style={{background: theme.card, padding: "15px", borderRadius: "12px", flex: 1, textAlign: "center", border: `1px solid ${theme.border}`}}><div style={{fontSize: "20px", fontWeight: "900", color: theme.gold}}>{val}</div><small style={{fontSize: "10px", color: theme.muted}}>{label}</small></div>);
+function TabButton({ icon, label, active, onClick }) { return (<button onClick={onClick} style={{ background: "none", border: "none", color: active ? theme.gold : theme.muted, display: "flex", flexDirection: "column", alignItems: "center", gap: "6px", flex: 1 }}>{icon} <span style={{ fontSize: "10px", fontWeight: active ? "900" : "500" }}>{label.toUpperCase()}</span></button>); }
+function Modal({ title, children, onClose }) { return (<div style={overlay}><div style={modalBox}><div style={{display: "flex", justifyContent: "space-between", marginBottom: "20px"}}><h2 style={{fontSize: "14px", color: theme.gold}}>{title}</h2><button onClick={onClose} style={{background: "none", border: "none", color: "#fff", fontSize: "24px"}}>×</button></div>{children}</div></div>); }
 
-const TabButton = ({ icon, label, active, onClick }) => (
-  <button onClick={onClick} style={{background: "none", border: "none", color: active ? theme.gold : theme.muted, display: "flex", flexDirection: "column", alignItems: "center", gap: "5px", cursor: "pointer", fontSize: "12px"}}>
-    {icon}
-    <span>{label}</span>
-  </button>
-);
-
-const StatSmall = ({ label, val }) => (
-  <div style={{flex: 1, background: theme.card, padding: "15px", borderRadius: "10px", textAlign: "center", border: `1px solid ${theme.border}`}}>
-    <div style={{fontSize: "12px", color: theme.muted}}>{label}</div>
-    <div style={{fontSize: "24px", fontWeight: "900", color: theme.gold}}>{val}</div>
-  </div>
-);
-
-const SectionTitle = ({ children }) => <h3 style={{color: theme.gold, fontSize: "12px", textTransform: "uppercase", letterSpacing: "1px", marginTop: "20px", marginBottom: "10px"}}>{children}</h3>;
-
-// --- ESTILOS ---
-const headerStyle = { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px", borderBottom: `1px solid ${theme.border}` };
-const avatarStyle = { background: theme.gold, color: theme.bg, width: "40px", height: "40px", borderRadius: "50%", border: "none", fontWeight: "900", cursor: "pointer", fontSize: "16px" };
-const navStyle = { position: "fixed", bottom: 0, width: "100%", display: "flex", justifyContent: "space-around", padding: "15px", background: theme.card, borderTop: `1px solid ${theme.border}`, zIndex: 40 };
-const fabStyle = { position: "fixed", bottom: "80px", right: "20px", width: "56px", height: "56px", borderRadius: "50%", background: theme.gold, color: theme.bg, border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 30, fontWeight: "900", boxShadow: "0 4px 12px rgba(0,0,0,.3)" };
-const cardStyle = { background: theme.card, padding: "15px", borderRadius: "10px", marginBottom: "10px", border: `1px solid ${theme.border}` };
+const headerStyle = { padding: "20px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, background: theme.bg, zIndex: 10 };
+const avatarStyle = { width: "40px", height: "40px", borderRadius: "12px", background: theme.gold, color: "#000", border: "none", fontWeight: "900" };
+const navStyle = { position: "fixed", bottom: 0, left: 0, right: 0, height: "85px", background: "#0D0D0D", display: "flex", borderTop: `1px solid ${theme.border}`, paddingBottom: "10px", zIndex: 100 };
+const cardStyle = { background: theme.card, padding: "20px", borderRadius: "16px", marginBottom: "15px", border: `1px solid ${theme.border}` };
+const fabStyle = { position: "fixed", bottom: "105px", right: "20px", width: "65px", height: "65px", borderRadius: "20px", background: theme.gold, color: "#000", border: "none", display: "flex", justifyContent: "center", alignItems: "center", boxShadow: `0 8px 30px ${theme.gold}55`, zIndex: 90 };
+const btnStyle = { width: "100%", padding: "16px", borderRadius: "12px", border: "none", fontWeight: "900", background: theme.gold, color: "#000" };
+const inputStyle = { background: "#1A1A1A", border: `1px solid ${theme.border}`, padding: "14px", borderRadius: "10px", color: "#fff", width: "100%", marginBottom: "10px" };
+const statusBadge = { padding: "4px 8px", background: theme.border, borderRadius: "6px", fontSize: "10px", fontWeight: "700" };
+const cobrarBtn = { background: theme.success, color: "#000", border: "none", borderRadius: "8px", padding: "8px 15px", fontWeight: "900" };
+const copyBox = { background: "#1A1A1A", padding: "15px", borderRadius: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" };
+const overlay = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.9)", display: "flex", justifyContent: "center", alignItems: "flex-end", zIndex: 1000 };
+const modalBox = { background: theme.card, width: "100%", padding: "30px", borderTopLeftRadius: "30px", borderTopRightRadius: "30px", maxHeight: "90vh", overflowY: "auto" };
+const scrollArea = { display: "flex", flexDirection: "column" };
 const rowBetween = { display: "flex", justifyContent: "space-between", alignItems: "center" };
-const inputStyle = { background: theme.bg, color: theme.text, border: `1px solid ${theme.border}`, padding: "12px", borderRadius: "8px", fontSize: "16px", fontFamily: "inherit" };
-const btnStyle = { background: theme.gold, color: theme.bg, padding: "12px 20px", borderRadius: "8px", border: "none", fontWeight: "900", cursor: "pointer", width: "100%", textTransform: "uppercase", fontSize: "14px" };
-const cobrarBtn = { background: theme.success, color: theme.bg, padding: "8px 16px", borderRadius: "6px", border: "none", fontWeight: "700", cursor: "pointer", textTransform: "uppercase", fontSize: "12px" };
-const scrollArea = { display: "flex", flexDirection: "column", gap: "10px", maxHeight: "60vh", overflowY: "auto" };
-const loadingStyle = { display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", background: theme.bg, color: theme.gold, fontSize: "24px", fontWeight: "900", letterSpacing: "2px" };
+const loadingStyle = { background: "#000", color: theme.gold, height: "100vh", display: "flex", justifyContent: "center", alignItems: "center", fontWeight: "900" };
